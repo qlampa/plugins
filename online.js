@@ -3,8 +3,8 @@
 
 	var Defined = {
 		api: 'lampac',
-		localhost: 'http://smotret24.ru/',
-		apn: ''
+		localhost: 'https://rc.bwa.to/',
+		apn: 'http://apn.cfhttp.top/'
 	};
 
 	var unic_id = Lampa.Storage.get('lampac_unic_id', '');
@@ -14,9 +14,9 @@
 	}
 
 	if (!window.rch) {
-		Lampa.Utils.putScript(["http://smotret24.ru/invc-rch.js"], function () { }, false, function () {
+		Lampa.Utils.putScript(["http://rc.bwa.to/invc-rch.js"], function () { }, false, function () {
 			if (!window.rch.startTypeInvoke)
-				window.rch.typeInvoke('http://smotret24.ru', function () { });
+				window.rch.typeInvoke('https://rc.bwa.to', function () { });
 		}, true);
 	}
 
@@ -48,7 +48,7 @@
 
 	function rchRun(json, call) {
 		if (typeof signalR == 'undefined') {
-			Lampa.Utils.putScript(["http://smotret24.ru/signalr-6.0.25_es5.js"], function () { }, false, function () {
+			Lampa.Utils.putScript(["https://rc.bwa.to/signalr-6.0.25_es5.js"], function () { }, false, function () {
 				rchInvoke(json, call);
 			}, true);
 		} else {
@@ -646,7 +646,7 @@
 								else if (element.url) {
 									if (Platform.is('browser') && location.host.indexOf("127.0.0.1") !== -1) {
 										Noty.show('Видео открыто в playerInner', { time: 3000 });
-										$.get('http://smotret24.ru/player-inner/' + element.url);
+										$.get('http://rc.bwa.to/player-inner/' + element.url);
 										return;
 									}
 
