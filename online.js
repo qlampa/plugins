@@ -1723,7 +1723,7 @@
 					resetTemplates();
 					Lampa.Component.add('qwatch', QWatchComponent);
 
-					var movieId = Lampa.Utils.hash(event.movie.number_of_seasons ? event.movie.original_name : event.movie.original_title);
+					var movieId = Lampa.Utils.hash(event.data.movie.number_of_seasons ? event.data.movie.original_name : event.data.movie.original_title);
 					var all = Lampa.Storage.get('clarification_search', '{}');
 					Lampa.Activity.push({
 						url: '',
