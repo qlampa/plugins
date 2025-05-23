@@ -167,7 +167,7 @@
 		}
 
 		this.initialize = function () {
-			//var _this = this;
+			var _this = this;
 			this.setLoading(true);
 
 			filter.onSearch = function (value) {
@@ -250,6 +250,8 @@
 				});
 			}
 			this.externalids().then(() => {
+				console.log('ft',_this);
+				console.log('at',this);
 				return this.createSource();
 			}).then(function (json) {
 				if (!availableBalancers.find(function (b) {
