@@ -142,7 +142,7 @@
 
 		var availableBalancers = ['kinotochka', 'kinopub', 'lumex', 'filmix', 'filmixtv', 'fxapi', 'redheadsound', 'animevost', 'animego', 'animedia', 'animebesst', 'anilibria', 'rezka', 'rhsprem', 'kodik', 'remux', 'animelib', 'kinoukr', 'rc/filmix', 'rc/fxapi', 'rc/rhs', 'vcdn', 'lumex', 'collaps', 'collaps-dash', 'hdvb', 'mirage', 'alloha'];
 
-		function balancerName(json) {
+		function getBalancerName(json) {
 			return (json.balanser || json.name.split(' ')[0]).toLowerCase();
 		}
 
@@ -341,8 +341,8 @@
 		this.startSource = function (sourcesJson) {
 			return new Promise(function (resolve, reject) {
 				sourcesJson.forEach(function (entry) {
-					var balancerName = balancerName(entry);
-					sources[balancerName] = {
+					var sourceName = getBalancerName(entry);
+					sources[sourceName] = {
 						url: entry.url,
 						name: entry.name,
 						show: typeof entry.show == 'undefined' ? true : entry.show
@@ -397,8 +397,8 @@
 						filter_sources = [];
 						sources = {};
 						lifeSourcesJson.online.forEach(function (entry) {
-							var balancerName = balancerName(entry);
-							sources[balancerName] = {
+							var sourceName = getBalancerName(entry);
+							sources[sourceName] = {
 								url: entry.url,
 								name: entry.name,
 								show: typeof entry.show == 'undefined' ? true : entry.show
