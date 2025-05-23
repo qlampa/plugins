@@ -142,8 +142,8 @@
 
 		var availableBalancers = ['kinotochka', 'kinopub', 'lumex', 'filmix', 'filmixtv', 'fxapi', 'redheadsound', 'animevost', 'animego', 'animedia', 'animebesst', 'anilibria', 'rezka', 'rhsprem', 'kodik', 'remux', 'animelib', 'kinoukr', 'rc/filmix', 'rc/fxapi', 'rc/rhs', 'vcdn', 'lumex', 'collaps', 'collaps-dash', 'hdvb', 'mirage', 'alloha'];
 
-		function getBalancerName(json) {
-			return (json.balanser || json.name.split(' ')[0]).toLowerCase();
+		function getBalancerName(entryJson) {
+			return (entryJson.balanser || entryJson.name.split(' ')[0]).toLowerCase();
 		}
 
 		function clarificationSearchAdd(value) {
@@ -252,12 +252,12 @@
 			this.externalids().then(function () {
 				return self.createSource();
 			}).then(function (json) {
-				if (!availableBalancers.find(function (b) {
-					return activeBalancer.slice(0, b.length) == b;
+				if (!availableBalancers.find(function (balancer) {
+					return activeBalancer.slice(0, balancer.length) == balancer;
 				})) {
 					filter.render().find('.filter--search').addClass('hide');
 				}
-				this.search();
+				self.search();
 			})["catch"](function (err) {
 				self.showNoConnectPage(err);
 			});
@@ -368,15 +368,15 @@
 			});
 		};
 		this.lifeSource = function () {
-			var _this3 = this;
+			var self = this;
 			return new Promise(function (resolve, reject) {
-				var url = _this3.requestParams(hostAddress + 'lifeevents?memkey=' + (_this3.memkey || ''));
+				var url = self.requestParams(hostAddress + 'lifeevents?memkey=' + (self.memkey || ''));
 				var red = false;
 				var gou = function gou(targetJson, any) {
 					if (targetJson.accsdb)
 						return reject(targetJson);
 
-					var last_balancer = _this3.getLastChoiceBalancer();
+					var last_balancer = self.getLastChoiceBalancer();
 					if (!red) {
 						var _filter = targetJson.online.filter(function (c) {
 							return (any ? c.show : (c.show && c.name.toLowerCase() == last_balancer));
@@ -415,7 +415,7 @@
 						}));
 						filter.chosen('sort', [sources[activeBalancer] ? sources[activeBalancer].name : activeBalancer]);
 						gou(lifeSourcesJson);
-						var lastBalancer = _this3.getLastChoiceBalancer();
+						var lastBalancer = self.getLastChoiceBalancer();
 						if (life_wait_times > 15 || lifeSourcesJson.ready) {
 							filter.render().find('.qwatch-balancer-loader').remove();
 							gou(lifeSourcesJson, true);
@@ -436,16 +436,16 @@
 			});
 		};
 		this.createSource = function () {
-			var _this4 = this;
+			var self = this;
 			return new Promise(function (resolve, reject) {
-				var url = _this4.requestParams(hostAddress + 'lite/events?life=true');
+				var url = self.requestParams(hostAddress + 'lite/events?life=true');
 				network.timeout(15000);
 				network.silent(account(url), function (targetJson) {
 					if (targetJson.accsdb)
 						return reject(targetJson);
 
 					if (targetJson.life) {
-						_this4.memkey = targetJson.memkey;
+						self.memkey = targetJson.memkey;
 						if (targetJson.title) {
 							if (object.movie.name)
 								object.movie.name = targetJson.title;
@@ -453,9 +453,9 @@
 								object.movie.title = targetJson.title;
 						}
 						filter.render().find('.filter--sort').append('<span class="qwatch-balancer-loader" style="width: 1.2em; height: 1.2em; margin-top: 0; background: url(./img/loader.svg) no-repeat 50% 50%; background-size: contain; margin-left: 0.5em"></span>');
-						_this4.lifeSource().then(_this4.startSource).then(resolve)["catch"](reject);
+						self.lifeSource().then(self.startSource).then(resolve)["catch"](reject);
 					} else
-						_this4.startSource(targetJson).then(resolve)["catch"](reject);
+						self.startSource(targetJson).then(resolve)["catch"](reject);
 				}, reject);
 			});
 		};
@@ -527,7 +527,7 @@
 			}
 		};
 		this.getFileUrl = function (file, call) {
-			var _this = this;
+			var self = this;
 
 			if (Lampa.Storage.field('player') !== 'inner' && file.stream && Lampa.Platform.is('apple')) {
 				var newfile = Lampa.Arrays.clone(file);
@@ -545,10 +545,10 @@
 				});
 				network["native"](account(file.url), function (json) {
 					if (json.rch) {
-						_this.rch(json, function () {
+						self.rch(json, function () {
 							Lampa.Loading.stop();
 
-							_this.getFileUrl(file, call);
+							self.getFileUrl(file, call);
 						});
 					}
 					else {
@@ -592,13 +592,13 @@
 			}
 		};
 		this.display = function (videos) {
-			var _this5 = this;
+			var self = this;
 			this.draw(videos, {
 				onEnter: function onEnter(item, html) {
-					_this5.getFileUrl(item, function (json, json_call) {
+					self.getFileUrl(item, function (json, json_call) {
 						if (json && json.url) {
 							var playlist = [];
-							var first = _this5.toPlayElement(item);
+							var first = self.toPlayElement(item);
 							first.url = json.url;
 							first.headers = json_call.headers || json.headers;
 							first.quality = json_call.quality || item.qualitys;
@@ -606,11 +606,11 @@
 							first.subtitles = json.subtitles;
 							first.vast_url = json.vast_url;
 							first.vast_msg = json.vast_msg;
-							_this5.orUrlReserve(first);
-							_this5.setDefaultQuality(first);
+							self.orUrlReserve(first);
+							self.setDefaultQuality(first);
 							if (item.season) {
 								videos.forEach(function (elem) {
-									var cell = _this5.toPlayElement(elem);
+									var cell = self.toPlayElement(elem);
 									if (elem == item)
 										cell.url = json.url;
 									else {
@@ -620,13 +620,13 @@
 												delete cell.quality;
 											} else {
 												cell.url = function (call) {
-													_this5.getFileUrl(elem, function (stream, stream_json) {
+													self.getFileUrl(elem, function (stream, stream_json) {
 														if (stream.url) {
 															cell.url = stream.url;
 															cell.quality = stream_json.quality || elem.qualitys;
 															cell.subtitles = stream.subtitles;
-															_this5.orUrlReserve(cell);
-															_this5.setDefaultQuality(cell);
+															self.orUrlReserve(cell);
+															self.setDefaultQuality(cell);
 															elem.mark();
 														} else {
 															cell.url = '';
@@ -642,8 +642,8 @@
 										} else
 											cell.url = elem.url;
 									}
-									_this5.orUrlReserve(cell);
-									_this5.setDefaultQuality(cell);
+									self.orUrlReserve(cell);
+									self.setDefaultQuality(cell);
 									playlist.push(cell);
 								}); //Lampa.Player.playlist(playlist)
 							} else
@@ -670,7 +670,7 @@
 								Lampa.Player.play(first);
 								Lampa.Player.playlist(playlist);
 								item.mark();
-								_this5.updateBalancer(activeBalancer);
+								self.updateBalancer(activeBalancer);
 							} else
 								Lampa.Noty.show(Lampa.Lang.translate('qwatch_no_link'));
 						} else
@@ -678,7 +678,7 @@
 					}, true);
 				},
 				onContextMenu: function onContextMenu(item, html, data, call) {
-					_this5.getFileUrl(item, function (stream) {
+					self.getFileUrl(item, function (stream) {
 						call({
 							file: stream.url,
 							quality: item.qualitys
@@ -802,7 +802,7 @@
 			}
 		};
 		this.similars = function (json) {
-			var _this6 = this;
+			var self = this;
 			scroll.clear();
 			json.forEach(function (elem) {
 				elem.title = elem.text;
@@ -834,8 +834,8 @@
 					Lampa.Utils.imgLoad(image, elem.img);
 				}
 				item.on('hover:enter', function () {
-					_this6.reset();
-					_this6.request(elem.url);
+					self.reset();
+					self.request(elem.url);
 				}).on('hover:focus', function (event) {
 					last = event.target;
 					scroll.update($(event.target), true);
@@ -911,10 +911,10 @@
 		 * Построить фильтр
 		 */
 		this.filter = function (filter_items, choice) {
-			var _this7 = this;
+			var self = this;
 			var select = [];
 			var add = function add(type, title) {
-				var need = _this7.getChoice();
+				var need = self.getChoice();
 				var items = filter_items[type];
 				var subitems = [];
 				var value = need[type];
@@ -1023,7 +1023,7 @@
 		 * Отрисовка файлов
 		 */
 		this.draw = function (items) {
-			var _this8 = this;
+			var self = this;
 			var params = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
 			if (!items.length)
 				return this.showEmptyPage();
@@ -1036,7 +1036,7 @@
 			this.getEpisodes(items[0].season, function (episodes) {
 				var viewed = Lampa.Storage.cache('qwatch_view', 5000, []);
 				var serial = object.movie.name ? true : false;
-				var choice = _this8.getChoice();
+				var choice = self.getChoice();
 				var fully = window.innerWidth > 480;
 				var scroll_to_element = false;
 				var scroll_to_mark = false;
@@ -1067,7 +1067,7 @@
 
 					var info = [];
 					if (element.season) {
-						element.translate_episode_end = _this8.getLastEpisode(items);
+						element.translate_episode_end = self.getLastEpisode(items);
 						element.translate_voice = element.voice_name;
 					}
 					if (element.text && !episode)
@@ -1138,18 +1138,18 @@
 								html.find('.qwatch__img').append('<div class="qwatch__viewed">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 						}
 
-						choice = _this8.getChoice();
+						choice = self.getChoice();
 						if (!serial)
 							choice.movie_view = hash_behold;
 						else
 							choice.episodes_view[element.season] = episode_num;
-						_this8.saveChoice(choice);
+						self.saveChoice(choice);
 
 						var voice_name_text = choice.voice_name || element.voice_name || element.title;
 						if (voice_name_text.length > 30)
 							voice_name_text = voice_name_text.slice(0, 30) + '...';
 
-						_this8.watched({
+						self.watched({
 							balancer: activeBalancer,
 							balancer_name: Lampa.Utils.capitalizeFirstLetter(sources[activeBalancer] ? sources[activeBalancer].name.split(' ')[0] : activeBalancer),
 							voice_id: choice.voice_id,
@@ -1184,7 +1184,7 @@
 					if (params.onRender)
 						params.onRender(element, html, data);
 
-					_this8.contextMenu({
+					self.contextMenu({
 						html: html,
 						element: element,
 						onFile: function onFile(call) {
@@ -1426,7 +1426,7 @@
 			this.setLoading(false);
 		};
 		this.showNoAnswerPage = function (err) {
-			var _this9 = this;
+			var self = this;
 			this.reset();
 			var html = Lampa.Template.get('qwatch_page_no_answer', {
 				balancer: activeBalancer
@@ -1455,8 +1455,8 @@
 					if (!next)
 						next = keys[0];
 					activeBalancer = next;
-					if (Lampa.Activity.active().activity == _this9.activity)
-						_this9.changeBalancer(activeBalancer);
+					if (Lampa.Activity.active().activity == self.activity)
+						self.changeBalancer(activeBalancer);
 				}
 			}, 1000);
 		};
