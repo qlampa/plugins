@@ -1,12 +1,12 @@
 (function () {
 	'use strict';
 
-	var hostAddress = 'https://smotret24.ru/';
+	var hostAddress = 'http://smotret24.ru/';
 
 	if (!window.rch) {
-		Lampa.Utils.putScript(["https://smotret24.ru/invc-rch.js"], function () { }, false, function () {
+		Lampa.Utils.putScript(["http://smotret24.ru/invc-rch.js"], function () { }, false, function () {
 			if (!window.rch.startTypeInvoke)
-				window.rch.typeInvoke('https://smotret24.ru', function () { });
+				window.rch.typeInvoke('http://smotret24.ru', function () { });
 		}, true);
 	}
 
@@ -40,7 +40,7 @@
 
 	function rchRun(json, call) {
 		if (typeof signalR == 'undefined') {
-			Lampa.Utils.putScript(["https://smotret24.ru/signalr-6.0.25_es5.js"], function () { }, false, function () {
+			Lampa.Utils.putScript(["http://smotret24.ru/signalr-6.0.25_es5.js"], function () { }, false, function () {
 				rchInvoke(json, call);
 			}, true);
 		} else
