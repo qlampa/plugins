@@ -1418,7 +1418,7 @@
 			var html = Lampa.Template.get('qwatch_page_no_answer', {});
 			html.find('.qwatch-empty__buttons').remove();
 			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('title_error'));
-			html.find('.qwatch-empty__time').text(err && err.accsdb ? err.msg : Lampa.Lang.translate('qwatch_balancer_no_results').replace('{balancer}', balancer[balancer].name));
+			html.find('.qwatch-empty__time').text(err && err.accsdb ? err.msg : Lampa.Lang.translate('qwatch_balancer_no_results').replace('{balancer}', sources[balancer].name));
 			scroll.clear();
 			scroll.append(html);
 			this.setLoading(false);
