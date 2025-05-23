@@ -12,7 +12,6 @@
 
 	var hubConnection;
 	var hubTimer;
-
 	function rchInvoke(json, call) {
 		if (hubConnection) {
 			clearTimeout(hubTimer);
@@ -27,7 +26,6 @@
 			});
 		})["catch"](function (err) {
 			Lampa.Noty.show(err.toString());
-			//return console.error(err.toString());
 		});
 
 		if (json.keepalive > 0) {
@@ -298,9 +296,9 @@
 			});
 		};
 		this.updateBalancer = function (balancerName) {
-			var last_select_balancer = Lampa.Storage.cache('qwatch_last_balancer', 3000, {});
-			last_select_balancer[object.movie.id] = balancerName;
-			Lampa.Storage.set('qwatch_last_balancer', last_select_balancer);
+			var lastBalancer = Lampa.Storage.cache('qwatch_last_balancer', 3000, {});
+			lastBalancer[object.movie.id] = balancerName;
+			Lampa.Storage.set('qwatch_last_balancer', lastBalancer);
 		};
 		this.changeBalancer = function (balancerName) {
 			this.updateBalancer(balancerName);
@@ -609,25 +607,25 @@
 							self.orUrlReserve(first);
 							self.setDefaultQuality(first);
 							if (item.season) {
-								videos.forEach(function (elem) {
-									var cell = self.toPlayElement(elem);
-									if (elem == item)
+								videos.forEach(function (element) {
+									var cell = self.toPlayElement(element);
+									if (element == item)
 										cell.url = json.url;
 									else {
-										if (elem.method == 'call') {
+										if (element.method == 'call') {
 											if (Lampa.Storage.field('player') !== 'inner') {
-												cell.url = elem.stream;
+												cell.url = element.stream;
 												delete cell.quality;
 											} else {
 												cell.url = function (call) {
-													self.getFileUrl(elem, function (stream, stream_json) {
+													self.getFileUrl(element, function (stream, stream_json) {
 														if (stream.url) {
 															cell.url = stream.url;
-															cell.quality = stream_json.quality || elem.qualitys;
+															cell.quality = stream_json.quality || element.qualitys;
 															cell.subtitles = stream.subtitles;
 															self.orUrlReserve(cell);
 															self.setDefaultQuality(cell);
-															elem.mark();
+															element.mark();
 														} else {
 															cell.url = '';
 															Lampa.Noty.show(Lampa.Lang.translate('qwatch_no_link'));
@@ -640,7 +638,7 @@
 												};
 											}
 										} else
-											cell.url = elem.url;
+											cell.url = element.url;
 									}
 									self.orUrlReserve(cell);
 									self.setDefaultQuality(cell);
@@ -804,38 +802,38 @@
 		this.similars = function (json) {
 			var self = this;
 			scroll.clear();
-			json.forEach(function (elem) {
-				elem.title = elem.text;
-				elem.info = '';
+			json.forEach(function (element) {
+				element.title = element.text;
+				element.details = '';
 
-				var info = [];
-				var year = ((elem.start_date || elem.year || object.movie.release_date || object.movie.first_air_date || '') + '').slice(0, 4);
+				var details = [];
+				var year = ((element.start_date || element.year || object.movie.release_date || object.movie.first_air_date || '') + '').slice(0, 4);
 				if (year)
-					info.push(year);
-				if (elem.details)
-					info.push(elem.details);
+					details.push(year);
+				if (element.details)
+					details.push(element.details);
 
-				var name = elem.title || elem.text;
-				elem.title = name;
-				elem.time = elem.time || '';
-				elem.info = info.join('<span class="qwatch-split">●</span>');
-				var item = Lampa.Template.get('qwatch_page_folder', elem);
-				if (elem.img) {
+				var name = element.title || element.text;
+				element.title = name;
+				element.time = element.time || '';
+				element.details = details.join('<span class="qwatch-split">●</span>');
+				var item = Lampa.Template.get('qwatch_page_folder', element);
+				if (element.img) {
 					var image = $('<img style="height: 7em; width: 7em; border-radius: 0.3em;"/>');
-					item.find('.qwatch__folder').empty().append(image);
+					item.find('.qwatch-item__folder').empty().append(image);
 
-					if (elem.img !== undefined) {
-						if (elem.img.charAt(0) === '/')
-							elem.img = hostAddress + elem.img.substring(1);
-						if (elem.img.indexOf('/proxyimg') !== -1)
-							elem.img = account(elem.img);
+					if (element.img !== undefined) {
+						if (element.img.charAt(0) === '/')
+							element.img = hostAddress + element.img.substring(1);
+						if (element.img.indexOf('/proxyimg') !== -1)
+							element.img = account(element.img);
 					}
 
-					Lampa.Utils.imgLoad(image, elem.img);
+					Lampa.Utils.imgLoad(image, element.img);
 				}
 				item.on('hover:enter', function () {
 					self.reset();
-					self.request(elem.url);
+					self.request(element.url);
 				}).on('hover:focus', function (event) {
 					last = event.target;
 					scroll.update($(event.target), true);
@@ -852,10 +850,10 @@
 			}, this.getChoice());
 			Lampa.Controller.enable('content');
 		};
-		this.getChoice = function (for_balancer) {
-			var data = Lampa.Storage.cache('qwatch_choice_' + (for_balancer || activeBalancer), 3000, {});
-			var save = data[object.movie.id] || {};
-			Lampa.Arrays.extend(save, {
+		this.getChoice = function (targetBalancer) {
+			var choicesChache = Lampa.Storage.cache('qwatch_choice_' + (targetBalancer || activeBalancer), 3000, {});
+			var choice = choicesChache[object.movie.id] || {};
+			Lampa.Arrays.extend(choice, {
 				season: 0,
 				voice: 0,
 				voice_name: '',
@@ -863,18 +861,18 @@
 				episodes_view: {},
 				movie_view: ''
 			});
-			return save;
+			return choice;
 		};
-		this.saveChoice = function (choice, for_balancer) {
-			var data = Lampa.Storage.cache('qwatch_choice_' + (for_balancer || activeBalancer), 3000, {});
-			data[object.movie.id] = choice;
-			Lampa.Storage.set('qwatch_choice_' + (for_balancer || activeBalancer), data);
-			this.updateBalancer(for_balancer || activeBalancer);
+		this.saveChoice = function (choice, targetBalancer) {
+			var choicesChache = Lampa.Storage.cache('qwatch_choice_' + (targetBalancer || activeBalancer), 3000, {});
+			choicesChache[object.movie.id] = choice;
+			Lampa.Storage.set('qwatch_choice_' + (targetBalancer || activeBalancer), choicesChache);
+			this.updateBalancer(targetBalancer || activeBalancer);
 		};
-		this.replaceChoice = function (choice, for_balancer) {
-			var to = this.getChoice(for_balancer);
-			Lampa.Arrays.extend(to, choice, true);
-			this.saveChoice(to, for_balancer);
+		this.replaceChoice = function (choice, targetBalancer) {
+			var destinationChoice = this.getChoice(targetBalancer);
+			Lampa.Arrays.extend(destinationChoice, choice, true);
+			this.saveChoice(destinationChoice, targetBalancer);
 		};
 		this.clearImages = function () {
 			images.forEach(function (img) {
@@ -987,20 +985,22 @@
 			} else
 				call(episodes);
 		};
-		this.watched = function (set) {
+		this.getWatched = function () {
 			var file_id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
 			var watched = Lampa.Storage.cache('qwatch_watched_last', 5000, {});
-			if (set) {
-				if (!watched[file_id])
-					watched[file_id] = {};
-				Lampa.Arrays.extend(watched[file_id], set, true);
-				Lampa.Storage.set('qwatch_watched_last', watched);
-				this.updateWatched();
-			} else
-				return watched[file_id];
+			return watched[file_id];
+		};
+		this.setWatched = function (entry) {
+			var file_id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
+			var watched = Lampa.Storage.cache('qwatch_watched_last', 5000, {});
+			if (!watched[file_id])
+				watched[file_id] = {};
+			Lampa.Arrays.extend(watched[file_id], entry, true);
+			Lampa.Storage.set('qwatch_watched_last', watched);
+			this.updateWatched();
 		};
 		this.updateWatched = function () {
-			var watched = this.watched();
+			var watched = this.getWatched();
 			var body = scroll.body().find('.qwatch-watched .qwatch-watched__body').empty();
 			if (watched) {
 				var line = [];
@@ -1034,19 +1034,19 @@
 
 			this.updateWatched();
 			this.getEpisodes(items[0].season, function (episodes) {
-				var viewed = Lampa.Storage.cache('qwatch_view', 5000, []);
-				var serial = object.movie.name ? true : false;
+				var viewList = Lampa.Storage.cache('online_view', 5000, []);
+				var isSerial = object.movie.name ? true : false;
 				var choice = self.getChoice();
 				var fully = window.innerWidth > 480;
 				var scroll_to_element = false;
 				var scroll_to_mark = false;
 				items.forEach(function (element, index) {
-					var episode = serial && episodes.length && !params.similars ? episodes.find(function (e) {
+					var episode = isSerial && episodes.length && !params.similars ? episodes.find(function (e) {
 						return e.episode_number == element.episode;
 					}) : false;
 					var episode_num = element.episode || index + 1;
 					var episode_last = choice.episodes_view[element.season];
-					var voice_name = choice.voice_name || (filter_find.voice[0] ? filter_find.voice[0].title : false) || element.voice_name || (serial ? 'Неизвестно' : element.text) || 'Неизвестно';
+					var voice_name = choice.voice_name || (filter_find.voice[0] ? filter_find.voice[0].title : undefined) || element.voice_name || (isSerial ? 'Неизвестно' : element.text) || 'Неизвестно';
 					if (element.quality) {
 						element.qualitys = element.quality;
 						element.quality = Lampa.Arrays.getKeys(element.quality)[0];
@@ -1054,10 +1054,11 @@
 
 					Lampa.Arrays.extend(element, {
 						voice_name: voice_name,
-						info: voice_name.length > 60 ? voice_name.substr(0, 60) + '...' : voice_name,
+						details: voice_name.length > 60 ? voice_name.substr(0, 60) + '...' : voice_name,
 						quality: '',
 						time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true)
 					});
+
 					var hash_timeline = Lampa.Utils.hash(element.season ? [element.season, element.season > 10 ? ':' : '', element.episode, object.movie.original_title].join('') : object.movie.original_title);
 					var hash_behold = Lampa.Utils.hash(element.season ? [element.season, element.season > 10 ? ':' : '', element.episode, object.movie.original_title, element.voice_name].join('') : object.movie.original_title + element.voice_name);
 					var data = {
@@ -1065,7 +1066,7 @@
 						hash_behold: hash_behold
 					};
 
-					var info = [];
+					var details = [];
 					if (element.season) {
 						element.translate_episode_end = self.getLastEpisode(items);
 						element.translate_voice = element.voice_name;
@@ -1076,70 +1077,76 @@
 
 					if (episode) {
 						element.title = episode.name;
-						if (element.info.length < 30 && episode.vote_average) info.push(Lampa.Template.get('qwatch_entry_rating', {
-							rate: parseFloat(episode.vote_average + '').toFixed(1)
-						}, true));
-						if (episode.air_date && fully) info.push(Lampa.Utils.parseTime(episode.air_date).full);
-					} else if (object.movie.release_date && fully) {
-						info.push(Lampa.Utils.parseTime(object.movie.release_date).full);
-					}
-					if (!serial && object.movie.tagline && element.info.length < 30)
-						info.push(object.movie.tagline);
-					if (element.info)
-						info.push(element.info);
-					if (info.length)
-						element.info = info.map(function (i) {
+
+						if (element.details.length < 30 && episode.vote_average)
+							details.push(Lampa.Template.get('qwatch_item_rating', {
+								rate: parseFloat(episode.vote_average + '').toFixed(1)
+							}, true));
+
+						if (episode.air_date && fully)
+							details.push(Lampa.Utils.parseTime(episode.air_date).full);
+					} else if (object.movie.release_date && fully)
+						details.push(Lampa.Utils.parseTime(object.movie.release_date).full);
+
+					if (!isSerial && object.movie.tagline && element.details.length < 30)
+						details.push(object.movie.tagline);
+					if (element.details)
+						details.push(element.details);
+					if (details.length)
+						element.details = details.map(function (i) {
 							return '<span>' + i + '</span>';
 						}).join('<span class="qwatch-split">●</span>');
 
 					var html = Lampa.Template.get('qwatch_page_full', element);
 					var loader = html.find('.qwatch__loader');
-					var image = html.find('.qwatch__img');
+					var image = html.find('.qwatch-item__img');
 					if (object.balancer)
 						image.hide();
 
-					if (!serial) {
+					if (!isSerial) {
 						if (choice.movie_view == hash_behold)
 							scroll_to_element = html;
 					} else if (typeof episode_last !== 'undefined' && episode_last == episode_num)
 						scroll_to_element = html;
 
-					if (serial && !episode) {
-						image.append('<div class="qwatch__episode-number">' + ('0' + (element.episode || index + 1)).slice(-2) + '</div>');
+					if (isSerial && !episode) {
+						image.append('<div class="qwatch-item__episode-number">' + ('0' + (element.episode || index + 1)).slice(-2) + '</div>');
 						loader.remove();
-					} else if (!serial && ['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
+					} else if (!isSerial && ['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
 						loader.remove();
 					else {
-						var img = html.find('img')[0];
-						img.onerror = function () {
-							img.src = './img/img_broken.svg';
+						var thumbnail = html.find('img')[0];
+						thumbnail.onerror = function () {
+							thumbnail.src = './img/img_broken.svg';
 						};
-						img.onload = function () {
-							image.addClass('qwatch__img--loaded');
+						thumbnail.onload = function () {
+							image.addClass('qwatch-item__img--loaded');
 							loader.remove();
-							if (serial) image.append('<div class="qwatch__episode-number">' + ('0' + (element.episode || index + 1)).slice(-2) + '</div>');
+							if (isSerial)
+								image.append('<div class="qwatch-item__episode-number">' + ('0' + (element.episode || index + 1)).slice(-2) + '</div>');
 						};
-						img.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
-						images.push(img);
+						thumbnail.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
+						images.push(thumbnail);
 					}
 
-					html.find('.qwatch__timeline').append(Lampa.Timeline.render(element.timeline));
-					if (viewed.indexOf(hash_behold) !== -1) {
+					html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(element.timeline));
+					if (viewList.indexOf(hash_behold) !== -1) {
 						scroll_to_mark = html;
-						html.find('.qwatch__img').append('<div class="qwatch__viewed">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
+						html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 					}
 
 					element.mark = function () {
-						viewed = Lampa.Storage.cache('qwatch_view', 5000, []);
-						if (viewed.indexOf(hash_behold) == -1) {
-							viewed.push(hash_behold);
-							Lampa.Storage.set('qwatch_view', viewed);
-							if (html.find('.qwatch__viewed').length == 0)
-								html.find('.qwatch__img').append('<div class="qwatch__viewed">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
+						// @note: 'online_view' is internal variable that affects other aspects
+						viewList = Lampa.Storage.cache('online_view', 5000, []);
+						if (viewList.indexOf(hash_behold) == -1) {
+							viewList.push(hash_behold);
+							Lampa.Storage.set('online_view', viewList);
+							if (html.find('.qwatch-item__watched').length == 0)
+								html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 						}
 
 						choice = self.getChoice();
-						if (!serial)
+						if (!isSerial)
 							choice.movie_view = hash_behold;
 						else
 							choice.episodes_view[element.season] = episode_num;
@@ -1149,7 +1156,7 @@
 						if (voice_name_text.length > 30)
 							voice_name_text = voice_name_text.slice(0, 30) + '...';
 
-						self.watched({
+						self.setWatched({
 							balancer: activeBalancer,
 							balancer_name: Lampa.Utils.capitalizeFirstLetter(sources[activeBalancer] ? sources[activeBalancer].name.split(' ')[0] : activeBalancer),
 							voice_id: choice.voice_id,
@@ -1159,12 +1166,13 @@
 						});
 					};
 					element.unmark = function () {
-						viewed = Lampa.Storage.cache('qwatch_view', 5000, []);
-						if (viewed.indexOf(hash_behold) !== -1) {
-							Lampa.Arrays.remove(viewed, hash_behold);
-							Lampa.Storage.set('qwatch_view', viewed);
-							Lampa.Storage.remove('qwatch_view', hash_behold);
-							html.find('.qwatch__viewed').remove();
+						// @note: 'online_view' is internal variable that affects other aspects
+						viewList = Lampa.Storage.cache('online_view', 5000, []);
+						if (viewList.indexOf(hash_behold) !== -1) {
+							Lampa.Arrays.remove(viewList, hash_behold);
+							Lampa.Storage.set('online_view', viewList);
+							Lampa.Storage.remove('online_view', hash_behold);
+							html.find('.qwatch-item__watched').remove();
 						}
 					};
 					element.timeclear = function () {
@@ -1174,12 +1182,15 @@
 						Lampa.Timeline.update(element.timeline);
 					};
 					html.on('hover:enter', function () {
-						if (object.movie.id) Lampa.Favorite.add('history', object.movie, 100);
-						if (params.onEnter) params.onEnter(element, html, data);
-					}).on('hover:focus', function (e) {
-						last = e.target;
-						if (params.onFocus) params.onFocus(element, html, data);
-						scroll.update($(e.target), true);
+						if (object.movie.id)
+							Lampa.Favorite.add('history', object.movie, 100);
+						if (params.onEnter)
+							params.onEnter(element, html, data);
+					}).on('hover:focus', function (event) {
+						last = event.target;
+						if (params.onFocus)
+							params.onFocus(element, html, data);
+						scroll.update($(event.target), true);
 					});
 					if (params.onRender)
 						params.onRender(element, html, data);
@@ -1188,7 +1199,8 @@
 						html: html,
 						element: element,
 						onFile: function onFile(call) {
-							if (params.onContextMenu) params.onContextMenu(element, html, data, call);
+							if (params.onContextMenu)
+								params.onContextMenu(element, html, data, call);
 						},
 						onClearAllMark: function onClearAllMark() {
 							items.forEach(function (elem) {
@@ -1204,48 +1216,48 @@
 					scroll.append(html);
 				});
 
-				if (serial && episodes.length > items.length && !params.similars) {
+				if (isSerial && episodes.length > items.length && !params.similars) {
 					var left = episodes.slice(items.length);
 					left.forEach(function (episode) {
-						var info = [];
+						var details = [];
 						if (episode.vote_average)
-							info.push(Lampa.Template.get('qwatch_entry_rating', {
+							details.push(Lampa.Template.get('qwatch_item_rating', {
 								rate: parseFloat(episode.vote_average + '').toFixed(1)
 							}, true));
 						if (episode.air_date)
-							info.push(Lampa.Utils.parseTime(episode.air_date).full);
+							details.push(Lampa.Utils.parseTime(episode.air_date).full);
 
 						var airDate = new Date((episode.air_date + '').replace(/-/g, '/'));
 						var daysLeft = Math.round((airDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
 						var daysLeftText = Lampa.Lang.translate('full_episode_days_left') + ': ' + daysLeft;
 						var html = Lampa.Template.get('qwatch_page_full', {
+							title: episode.name,
 							time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true),
-							info: info.length ? info.map(function (i) {
+							details: details.length ? details.map(function (i) {
 								return '<span>' + i + '</span>';
 							}).join('<span class="qwatch-split">●</span>') : '',
-							title: episode.name,
 							quality: daysLeft > 0 ? daysLeftText : ''
 						});
 
 						var loader = html.find('.qwatch__loader');
-						var image = html.find('.qwatch__img');
+						var image = html.find('.qwatch-item__img');
 						var season = items[0] ? items[0].season : 1;
-						html.find('.qwatch__timeline').append(Lampa.Timeline.render(Lampa.Timeline.view(Lampa.Utils.hash([season, episode.episode_number, object.movie.original_title].join('')))));
-						var img = html.find('img')[0];
+						html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(Lampa.Timeline.view(Lampa.Utils.hash([season, episode.episode_number, object.movie.original_title].join('')))));
+						var thumbnail = html.find('img')[0];
 						if (episode.still_path) {
-							img.onerror = function () {
-								img.src = './img/img_broken.svg';
+							thumbnail.onerror = function () {
+								thumbnail.src = './img/img_broken.svg';
 							};
-							img.onload = function () {
-								image.addClass('qwatch__img--loaded');
+							thumbnail.onload = function () {
+								image.addClass('qwatch-item__img--loaded');
 								loader.remove();
-								image.append('<div class="qwatch__episode-number">' + ('0' + episode.episode_number).slice(-2) + '</div>');
+								image.append('<div class="qwatch-item__episode-number">' + ('0' + episode.episode_number).slice(-2) + '</div>');
 							};
-							img.src = Lampa.TMDB.image('t/p/w300' + episode.still_path);
-							images.push(img);
+							thumbnail.src = Lampa.TMDB.image('t/p/w300' + episode.still_path);
+							images.push(thumbnail);
 						} else {
 							loader.remove();
-							image.append('<div class="qwatch__episode-number">' + ('0' + episode.episode_number).slice(-2) + '</div>');
+							image.append('<div class="qwatch-item__episode-number">' + ('0' + episode.episode_number).slice(-2) + '</div>');
 						}
 
 						html.on('hover:focus', function (event) {
@@ -1279,7 +1291,7 @@
 							player: 'webos'
 						});
 					}
-					if (Lampa.Platform.is('android')) {
+					else if (Lampa.Platform.is('android')) {
 						menu.push({
 							title: Lampa.Lang.translate('player_lauch') + ' - Android',
 							player: 'android'
@@ -1339,11 +1351,13 @@
 							Lampa.Controller.toggle(enabled);
 						},
 						onSelect: function onSelect(a) {
+							// process entries callbacks @todo: better to rework this
 							if (a.mark) params.element.mark();
 							if (a.unmark) params.element.unmark();
 							if (a.timeclear) params.element.timeclear();
 							if (a.clearallmark) params.onClearAllMark();
 							if (a.timeclearall) params.onClearAllTime();
+
 							if (window.qwatch_online_context_menu)
 								window.qwatch_online_context_menu.onSelect(a, params);
 
@@ -1356,16 +1370,16 @@
 
 							if (a.copylink) {
 								if (extra.quality) {
-									var qual = [];
+									var qualities = [];
 									for (var i in extra.quality) {
-										qual.push({
+										qualities.push({
 											title: i,
 											file: extra.quality[i]
 										});
 									}
 									Lampa.Select.show({
 										title: Lampa.Lang.translate('settings_server_links'),
-										items: qual,
+										items: qualities,
 										onBack: function onBack() {
 											Lampa.Controller.toggle(enabled);
 										},
@@ -1729,43 +1743,42 @@
 			}
 		});
 
+		// register css styles
 		Lampa.Template.add('qwatch_css',
 			'<style>' +
 			'@charset \'UTF-8\';' +
-			'.qwatch-container{position:relative;-webkit-border-radius:.3em;border-radius:.3em;background-color:rgba(0,0,0,0.3);display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}' +
-			'.qwatch__body{padding:1.2em;line-height:1.3;-webkit-box-flex:1;-webkit-flex-grow:1;-moz-box-flex:1;-ms-flex-positive:1;flex-grow:1;position:relative}' +
-			'@media screen and (max-width:480px){.qwatch__body{padding:.8em 1.2em}}' +
-			'.qwatch__img{position:relative;width:13em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0;min-height:8.2em}' +
-			'.qwatch__img>img{position:absolute;top:0;left:0;width:100%;height:100%;-o-object-fit:cover;object-fit:cover;-webkit-border-radius:.3em;border-radius:.3em;opacity:0;-webkit-transition:opacity .3s;-o-transition:opacity .3s;-moz-transition:opacity .3s;transition:opacity .3s}' +
-			'.qwatch__img--loaded>img{opacity:1}@media screen and (max-width:480px){.qwatch__img{width:7em;min-height:6em}}' +
-			'.qwatch__folder{padding:1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
-			'.qwatch__folder>svg{width:4.4em !important;height:4.4em !important}' +
-			'.qwatch__viewed{position:absolute;top:1em;left:1em;background:rgba(0,0,0,0.45);-webkit-border-radius:100%;border-radius:100%;padding:.25em;font-size:.76em}' +
-			'.qwatch__viewed>svg{width:1.5em !important;height:1.5em !important}' +
-			'.qwatch__episode-number{position:absolute;top:0;left:0;right:0;bottom:0;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-box-pack:center;-webkit-justify-content:center;-moz-box-pack:center;-ms-flex-pack:center;justify-content:center;font-size:2em}' +
+			'.qwatch-item{position:relative;-webkit-border-radius:.3em;border-radius:.3em;background-color:rgba(0,0,0,0.3);display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}' +
+			'.qwatch-item__body{padding:1.2em;line-height:1.3;-webkit-box-flex:1;-webkit-flex-grow:1;-moz-box-flex:1;-ms-flex-positive:1;flex-grow:1;position:relative}' +
+			'@media screen and (max-width:480px){.qwatch-item__body{padding:.8em 1.2em}}' +
+			'.qwatch-item__img{position:relative;width:13em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0;min-height:8.2em}' +
+			'.qwatch-item__img>img{position:absolute;top:0;left:0;width:100%;height:100%;-o-object-fit:cover;object-fit:cover;-webkit-border-radius:.3em;border-radius:.3em;opacity:0;-webkit-transition:opacity .3s;-o-transition:opacity .3s;-moz-transition:opacity .3s;transition:opacity .3s}' +
+			'.qwatch-item__img--loaded>img{opacity:1}@media screen and (max-width:480px){.qwatch-item__img{width:7em;min-height:6em}}' +
+			'.qwatch-item__folder{padding:1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
+			'.qwatch-item__folder>svg{width:4.4em !important;height:4.4em !important}' +
+			'.qwatch-item__watched{position:absolute;top:1em;left:1em;background:rgba(0,0,0,0.45);-webkit-border-radius:100%;border-radius:100%;padding:.25em;font-size:.76em}' +
+			'.qwatch-item__watched>svg{width:1.5em !important;height:1.5em !important}' +
+			'.qwatch-item__episode-number{position:absolute;top:0;left:0;right:0;bottom:0;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-box-pack:center;-webkit-justify-content:center;-moz-box-pack:center;-ms-flex-pack:center;justify-content:center;font-size:2em}' +
 			'.qwatch__loader{position:absolute;top:50%;left:50%;width:2em;height:2em;margin-left:-1em;margin-top:-1em;background:url(./img/loader.svg) no-repeat center center;-webkit-background-size:contain;-o-background-size:contain;background-size:contain}' +
-			'.qwatch__head,.qwatch__footer{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-pack:justify;-webkit-justify-content:space-between;-moz-box-pack:justify;-ms-flex-pack:justify;justify-content:space-between;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
-			'.qwatch__timeline{margin:.8em 0}' +
-			'.qwatch__timeline>.time-line{display:block !important}' +
-			'.qwatch__title{font-size:1.7em;overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
-			'@media screen and (max-width:480px){.qwatch__title{font-size:1.4em}}' +
-			'.qwatch__time{padding-left:2em}' +
-			'.qwatch__info{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
-			'.qwatch__info>*{overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
-			'.qwatch__quality{padding-left:1em;white-space:nowrap}' +
-			'.qwatch__scan-file{position:absolute;bottom:0;left:0;right:0}' +
-			'.qwatch__scan-file .broadcast__scan{margin:0}' +
-			'.qwatch-container .qwatch-split{font-size:.8em;margin:0 1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
-			'.qwatch-container.focus::after{content:\'\';position:absolute;top:-0.6em;left:-0.6em;right:-0.6em;bottom:-0.6em;-webkit-border-radius:.7em;border-radius:.7em;border:solid .3em #fff;z-index:-1;pointer-events:none}' +
-			'.qwatch-container+.qwatch-container{margin-top:1.5em}' +
-			'.qwatch--folder .qwatch__footer{margin-top:.8em}' +
+			'.qwatch-item__head,.qwatch-item__footer{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-pack:justify;-webkit-justify-content:space-between;-moz-box-pack:justify;-ms-flex-pack:justify;justify-content:space-between;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
+			'.qwatch-item__timeline{margin:.8em 0}' +
+			'.qwatch-item__timeline>.time-line{display:block !important}' +
+			'.qwatch-item__title{font-size:1.7em;overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
+			'@media screen and (max-width:480px){.qwatch-item__title{font-size:1.4em}}' +
+			'.qwatch-item__time{padding-left:2em}' +
+			'.qwatch-item__details{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
+			'.qwatch-item__details>*{overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
+			'.qwatch-item__quality{padding-left:1em;white-space:nowrap}' +
+			'.qwatch-item .qwatch-split{font-size:.8em;margin:0 1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
+			'.qwatch-item.focus::after{content:\'\';position:absolute;top:-0.6em;left:-0.6em;right:-0.6em;bottom:-0.6em;-webkit-border-radius:.7em;border-radius:.7em;border:solid .3em #fff;z-index:-1;pointer-events:none}' +
+			'.qwatch-item+.qwatch-item{margin-top:1.5em}' +
+			'.qwatch-item--folder .qwatch-item__footer{margin-top:.8em}' +
 			'.qwatch-watched{padding:1em}' +
 			'.qwatch-watched__icon>svg{width:1.5em;height:1.5em}' +
 			'.qwatch-watched__body{padding-left:1em;padding-top:.1em;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap}' +
 			'.qwatch-watched__body>span+span::before{content:\' ● \';vertical-align:top;display:inline-block;margin:0 .5em}' +
-			'.qwatch-rate{display:-webkit-inline-box;display:-webkit-inline-flex;display:-moz-inline-box;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
-			'.qwatch-rate>svg{width:1.3em !important;height:1.3em !important}' +
-			'.qwatch-rate>span{font-weight:600;font-size:1.1em;padding-left:.7em}' +
+			'.qwatch-item__rating{display:-webkit-inline-box;display:-webkit-inline-flex;display:-moz-inline-box;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
+			'.qwatch-item__rating>svg{width:1.3em !important;height:1.3em !important}' +
+			'.qwatch-item__rating>span{font-weight:600;font-size:1.1em;padding-left:.5em}' +
 			'.qwatch-empty{line-height:1.4}' +
 			'.qwatch-empty__title{font-size:1.8em;margin-bottom:.3em}' +
 			'.qwatch-empty__time{font-size:1.2em;font-weight:300;margin-bottom:1.6em}' +
@@ -1773,152 +1786,148 @@
 			'.qwatch-empty__buttons>*+*{margin-left:1em}' +
 			'.qwatch-empty__button{background:rgba(0,0,0,0.3);font-size:1.2em;padding:.5em 1.2em;-webkit-border-radius:.2em;border-radius:.2em;margin-bottom:2.4em}' +
 			'.qwatch-empty__button.focus{background:#fff;color:black}' +
-			'.qwatch-empty__templates .qwatch-empty-template:nth-child(2){opacity:.5}' +
-			'.qwatch-empty__templates .qwatch-empty-template:nth-child(3){opacity:.2}' +
-			'.qwatch-empty-template{background-color:rgba(255,255,255,0.3);padding:1em;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-border-radius:.3em;border-radius:.3em}' +
-			'.qwatch-empty-template>*{background:rgba(0,0,0,0.3);-webkit-border-radius:.3em;border-radius:.3em}' +
-			'.qwatch-empty-template__ico{width:4em;height:4em;margin-right:2.4em}' +
-			'.qwatch-empty-template__body{height:1.7em;width:70%}' +
-			'.qwatch-empty-template+.qwatch-empty-template{margin-top:1em}' +
+			'.qwatch-empty__list .qwatch-empty-skeleton:nth-child(2){opacity:.5}' +
+			'.qwatch-empty__list .qwatch-empty-skeleton:nth-child(3){opacity:.2}' +
+			'.qwatch-empty-skeleton{background-color:rgba(255,255,255,0.3);padding:1em;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-border-radius:.3em;border-radius:.3em}' +
+			'.qwatch-empty-skeleton>*{background:rgba(0,0,0,0.3);-webkit-border-radius:.3em;border-radius:.3em}' +
+			'.qwatch-empty-skeleton__ico{width:4em;height:4em;margin-right:2.4em}' +
+			'.qwatch-empty-skeleton__body{height:1.7em;width:70%}' +
+			'.qwatch-empty-skeleton+.qwatch-empty-skeleton{margin-top:1em}' +
 			'</style>');
 		$('body').append(Lampa.Template.get('qwatch_css', {}, true));
 
-		function resetTemplates() {
-			Lampa.Template.add('qwatch_page_full', 
-				'<div class="qwatch-container qwatch--full selector">' +
-					'<div class="qwatch__img">' +
+		Lampa.Listener.add('full', function (event) {
+			if (event.type != 'complite')
+				return;
+
+			// render button
+			var onlineButton = $(Lampa.Lang.translate(
+				'<div class="full-start__button selector view--qwatch" data-subtitle="' + manifest.name + ' ' + manifest.version + '">' +
+				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">' +
+				'<path fill="currentColor" fill-rule="evenodd" d="M3.07 6a8.025 8.025 0 014.262-3.544A12.802 12.802 0 005.595 6H3.07zm-.818 2A8.015 8.015 0 002 10c0 .69.088 1.36.252 2h2.89A13.886 13.886 0 015 10c0-.704.051-1.371.143-2H2.252zm4.916 0C7.06 8.62 7 9.286 7 10c0 .713.061 1.38.168 2h5.664c.107-.62.168-1.287.168-2 0-.714-.061-1.38-.168-2H7.168zm7.69 0c.09.629.142 1.296.142 2s-.051 1.371-.143 2h2.891c.165-.64.252-1.31.252-2s-.087-1.36-.252-2h-2.89zm2.072-2h-2.525a12.805 12.805 0 00-1.737-3.544A8.025 8.025 0 0116.93 6zm-4.638 0H7.708c.324-.865.725-1.596 1.124-2.195.422-.633.842-1.117 1.168-1.452.326.335.746.82 1.168 1.452.4.599.8 1.33 1.124 2.195zm-1.124 10.195c.4-.599.8-1.33 1.124-2.195H7.708c.324.865.725 1.596 1.124 2.195.422.633.842 1.117 1.168 1.452.326-.335.746-.82 1.168-1.452zM3.07 14h2.525a12.802 12.802 0 001.737 3.544A8.025 8.025 0 013.07 14zm9.762 3.305a12.9 12.9 0 01-.164.24A8.025 8.025 0 0016.93 14h-2.525a12.805 12.805 0 01-1.573 3.305zM20 10c0 5.52-4.472 9.994-9.99 10h-.022C4.47 19.994 0 15.519 0 10 0 4.477 4.477 0 10 0s10 4.477 10 10z"/>' +
+				'</svg>' +
+				'<span>#{qwatch_title}</span>' +
+				'</div>'));
+			var render = event.object.activity.render();
+			var torrentButton = render.find('.view--torrent');
+			if (torrentButton.length)
+				torrentButton.before(onlineButton);
+			else
+				render.find('.full-start__button:last').after(onlineButton);
+
+			// register button action
+			onlineButton.on('hover:enter', function () {
+				// register templates
+				Lampa.Template.add('qwatch_page_full', 
+				'<div class="qwatch-item selector">' +
+					'<div class="qwatch-item__img">' +
 						'<img alt="">' +
 						'<div class="qwatch__loader"/>' +
 					'</div>' +
-					'<div class="qwatch__body">' +
-						'<div class="qwatch__head">' +
-							'<div class="qwatch__title">{title}</div>' +
-							'<div class="qwatch__time">{time}</div>' +
+					'<div class="qwatch-item__body">' +
+						'<div class="qwatch-item__head">' +
+							'<div class="qwatch-item__title">{title}</div>' +
+							'<div class="qwatch-item__time">{time}</div>' +
 						'</div>' +
-						'<div class="qwatch__timeline"/>' +
-						'<div class="qwatch__footer">' +
-							'<div class=\"qwatch__info\">{info}</div>' +
-							'<div class=\"qwatch__quality\">{quality}</div>' +
-						'</div>' +
-					'</div>' +
-				'</div>');
-			Lampa.Template.add('qwatch_page_content_loader',
-				'<div class="qwatch-empty">' +
-					'<div class="broadcast__scan"><div/></div>' +
-					'<div class="qwatch-empty__templates">' +
-						'<div class="qwatch-empty-template selector">' +
-							'<div class="qwatch-empty-template__ico"/>' +
-							'<div class="qwatch-empty-template__body"/>' +
-						'</div>' +
-						'<div class="qwatch-empty-template">' +
-							'<div class="qwatch-empty-template__ico"/>' +
-							'<div class="qwatch-empty-template__body"/>' +
-						'</div>' +
-						'<div class="qwatch-empty-template">' +
-							'<div class="qwatch-empty-template__ico"/>' +
-							'<div class="qwatch-empty-template__body"/>' +
+						'<div class="qwatch-item__timeline"/>' +
+						'<div class="qwatch-item__footer">' +
+							'<div class="qwatch-item__details">{details}</div>' +
+							'<div class="qwatch-item__quality">{quality}</div>' +
 						'</div>' +
 					'</div>' +
 				'</div>');
-			Lampa.Template.add('qwatch_page_no_answer',
-				'<div class="qwatch-empty">' +
-					'<div class="qwatch-empty__title">#{qwatch_balancer_no_results}</div>' +
-					'<div class="qwatch-empty__time">#{qwatch_balancer_timeout}</div>' +
-					'<div class="qwatch-empty__buttons">' +
-						'<div class="qwatch-empty__button selector cancel">#{cancel}</div>' +
-						'<div class="qwatch-empty__button selector change">#{qwatch_balancer_change}</div>' +
-					'</div>' +
-					'<div class="qwatch-empty__templates">' +
-						'<div class="qwatch-empty-template">' +
-							'<div class="qwatch-empty-template__ico"/>'+
-							'<div class="qwatch-empty-template__body"/>' +
+				Lampa.Template.add('qwatch_page_content_loader',
+					'<div class="qwatch-empty">' +
+						'<div class="broadcast__scan"><div/></div>' +
+						'<div class="qwatch-empty__list">' +
+							'<div class="qwatch-empty-skeleton selector">' +
+								'<div class="qwatch-empty-skeleton__ico"/>' +
+								'<div class="qwatch-empty-skeleton__body"/>' +
+							'</div>' +
+							'<div class="qwatch-empty-skeleton">' +
+								'<div class="qwatch-empty-skeleton__ico"/>' +
+								'<div class="qwatch-empty-skeleton__body"/>' +
+							'</div>' +
+							'<div class="qwatch-empty-skeleton">' +
+								'<div class="qwatch-empty-skeleton__ico"/>' +
+								'<div class="qwatch-empty-skeleton__body"/>' +
+							'</div>' +
 						'</div>' +
-						'<div class="qwatch-empty-template">' +
-							'<div class="qwatch-empty-template__ico"/>' +
-							'<div class="qwatch-empty-template__body"/>' +
+					'</div>');
+				Lampa.Template.add('qwatch_page_no_answer',
+					'<div class="qwatch-empty">' +
+						'<div class="qwatch-empty__title">#{qwatch_balancer_no_results}</div>' +
+						'<div class="qwatch-empty__time">#{qwatch_balancer_timeout}</div>' +
+						'<div class="qwatch-empty__buttons">' +
+							'<div class="qwatch-empty__button selector cancel">#{cancel}</div>' +
+							'<div class="qwatch-empty__button selector change">#{qwatch_balancer_change}</div>' +
 						'</div>' +
-						'<div class="qwatch-empty-template">' +
-							'<div class="qwatch-empty-template__ico"/>' +
-							'<div class="qwatch-empty-template__body"/>' +
+						'<div class="qwatch-empty__list">' +
+							'<div class="qwatch-empty-skeleton">' +
+								'<div class="qwatch-empty-skeleton__ico"/>'+
+								'<div class="qwatch-empty-skeleton__body"/>' +
+							'</div>' +
+							'<div class="qwatch-empty-skeleton">' +
+								'<div class="qwatch-empty-skeleton__ico"/>' +
+								'<div class="qwatch-empty-skeleton__body"/>' +
+							'</div>' +
+							'<div class="qwatch-empty-skeleton">' +
+								'<div class="qwatch-empty-skeleton__ico"/>' +
+								'<div class="qwatch-empty-skeleton__body"/>' +
+							'</div>' +
 						'</div>' +
-					'</div>' +
-				'</div>');
-			Lampa.Template.add('qwatch_entry_rating', 
-				'<div class="qwatch-rate">' +
-					'<svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-						'<path d="M8.39409 0.192139L10.99 5.30994L16.7882 6.20387L12.5475 10.4277L13.5819 15.9311L8.39409 13.2425L3.20626 15.9311L4.24065 10.4277L0 6.20387L5.79819 5.30994L8.39409 0.192139Z" fill="#fff"/>' +
-					'</svg>' +
-					'<span>{rate}</span>' +
-				'</div>');
-			Lampa.Template.add('qwatch_page_folder', 
-				'<div class="qwatch-container qwatch--folder selector">' +
-					'<div class="qwatch__folder">' +
-						'<svg viewBox="0 0 128 112" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-							'<rect y="20" width="128" height="92" rx="13" fill="white"/><path d="M29.9963 8H98.0037C96.0446 3.3021 91.4079 0 86 0H42C36.5921 0 31.9555 3.3021 29.9963 8Z" fill="white" fill-opacity="0.23"/><rect x="11" y="8" width="106" height="76" rx="13" fill="white" fill-opacity="0.51"/>' +
+					'</div>');
+				Lampa.Template.add('qwatch_item_rating', 
+					'<div class="qwatch-item__rating">' +
+						'<svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+							'<path d="M8.39409 0.192139L10.99 5.30994L16.7882 6.20387L12.5475 10.4277L13.5819 15.9311L8.39409 13.2425L3.20626 15.9311L4.24065 10.4277L0 6.20387L5.79819 5.30994L8.39409 0.192139Z" fill="#fff"/>' +
 						'</svg>' +
-					'</div>' +
-					'<div class="qwatch__body">' +
-						'<div class="qwatch__head">' +
-							'<div class="qwatch__title">{title}</div>' +
-							'<div class="qwatch__time">{time}</div>' +
+						'<span>{rate}</span>' +
+					'</div>');
+				Lampa.Template.add('qwatch_page_folder', 
+					'<div class="qwatch-item qwatch-item--folder selector">' +
+						'<div class="qwatch-item__folder">' +
+							'<svg viewBox="0 0 128 112" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+								'<rect y="20" width="128" height="92" rx="13" fill="white"/><path d="M29.9963 8H98.0037C96.0446 3.3021 91.4079 0 86 0H42C36.5921 0 31.9555 3.3021 29.9963 8Z" fill="white" fill-opacity="0.23"/><rect x="11" y="8" width="106" height="76" rx="13" fill="white" fill-opacity="0.51"/>' +
+							'</svg>' +
 						'</div>' +
-						'<div class="qwatch__footer">' +
-							'<div class="qwatch__info">{info}</div>' +
+						'<div class="qwatch-item__body">' +
+							'<div class="qwatch-item__head">' +
+								'<div class="qwatch-item__title">{title}</div>' +
+								'<div class="qwatch-item__time">{time}</div>' +
+							'</div>' +
+							'<div class="qwatch-item__footer">' +
+								'<div class="qwatch-item__details">{details}</div>' +
+							'</div>' +
 						'</div>' +
-					'</div>' +
-				'</div>');
-			Lampa.Template.add('qwatch_page_watched', 
-				'<div class="qwatch-container qwatch-watched selector">' +
-					'<div class="qwatch-watched__icon">' +
-						'<svg width="21" height="21" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-							'<circle cx="10.5" cy="10.5" r="9" stroke="currentColor" stroke-width="3"/>' +
-							'<path d="M14.8477 10.5628L8.20312 14.399L8.20313 6.72656L14.8477 10.5628Z" fill="currentColor"/>' +
-						'</svg>' +
-					'</div>' +
-					'<div class="qwatch-watched__body"/>' +
-				'</div>');
-		}
+					'</div>');
+				Lampa.Template.add('qwatch_page_watched', 
+					'<div class="qwatch-item qwatch-watched selector">' +
+						'<div class="qwatch-watched__icon">' +
+							'<svg width="21" height="21" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+								'<circle cx="10.5" cy="10.5" r="9" stroke="currentColor" stroke-width="3"/>' +
+								'<path d="M14.8477 10.5628L8.20312 14.399L8.20313 6.72656L14.8477 10.5628Z" fill="currentColor"/>' +
+							'</svg>' +
+						'</div>' +
+						'<div class="qwatch-watched__body"/>' +
+					'</div>');
 
-		Lampa.Listener.follow('full', function (event) {
-			if (event.type == 'complite') {
-				var render = event.object.activity.render();
+				// register component
+				Lampa.Component.add('qwatch', QWatchComponent);
 
-				// render button
-				var onlineButton = $(Lampa.Lang.translate(
-					'<div class="full-start__button selector view--qwatch" data-subtitle="' + manifest.name + ' ' + manifest.version + '">' +
-					'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">' +
-					'<path fill="currentColor" fill-rule="evenodd" d="M3.07 6a8.025 8.025 0 014.262-3.544A12.802 12.802 0 005.595 6H3.07zm-.818 2A8.015 8.015 0 002 10c0 .69.088 1.36.252 2h2.89A13.886 13.886 0 015 10c0-.704.051-1.371.143-2H2.252zm4.916 0C7.06 8.62 7 9.286 7 10c0 .713.061 1.38.168 2h5.664c.107-.62.168-1.287.168-2 0-.714-.061-1.38-.168-2H7.168zm7.69 0c.09.629.142 1.296.142 2s-.051 1.371-.143 2h2.891c.165-.64.252-1.31.252-2s-.087-1.36-.252-2h-2.89zm2.072-2h-2.525a12.805 12.805 0 00-1.737-3.544A8.025 8.025 0 0116.93 6zm-4.638 0H7.708c.324-.865.725-1.596 1.124-2.195.422-.633.842-1.117 1.168-1.452.326.335.746.82 1.168 1.452.4.599.8 1.33 1.124 2.195zm-1.124 10.195c.4-.599.8-1.33 1.124-2.195H7.708c.324.865.725 1.596 1.124 2.195.422.633.842 1.117 1.168 1.452.326-.335.746-.82 1.168-1.452zM3.07 14h2.525a12.802 12.802 0 001.737 3.544A8.025 8.025 0 013.07 14zm9.762 3.305a12.9 12.9 0 01-.164.24A8.025 8.025 0 0016.93 14h-2.525a12.805 12.805 0 01-1.573 3.305zM20 10c0 5.52-4.472 9.994-9.99 10h-.022C4.47 19.994 0 15.519 0 10 0 4.477 4.477 0 10 0s10 4.477 10 10z"/>' +
-					'</svg>' +
-					'<span>#{qwatch_title}</span>' +
-					'</div>'));
-				var torrentButton = render.find('.view--torrent');
-				if (torrentButton.length)
-					torrentButton.before(onlineButton);
-				else
-					render.find('.full-start__button:last').after(onlineButton);
-
-				// register button action
-				onlineButton.on('hover:enter', function () {
-					// register templates
-					resetTemplates();
-
-					// register component
-					Lampa.Component.add('qwatch', QWatchComponent);
-
-					// register activity
-					var movieId = Lampa.Utils.hash(event.data.movie.number_of_seasons ? event.data.movie.original_name : event.data.movie.original_title);
-					var all = Lampa.Storage.get('clarification_search', '{}');
-					Lampa.Activity.push({
-						url: '',
-						title: Lampa.Lang.translate('qwatch_title'),
-						component: 'qwatch',
-						search: all[movieId] ? all[movieId] : event.data.movie.title,
-						movie: event.data.movie,
-						page: 1,
-						clarification: all[movieId] ? true : false
-					});
+				// register activity
+				var movieId = Lampa.Utils.hash(event.data.movie.number_of_seasons ? event.data.movie.original_name : event.data.movie.original_title);
+				var all = Lampa.Storage.get('clarification_search', '{}');
+				Lampa.Activity.push({
+					url: '',
+					title: Lampa.Lang.translate('qwatch_title'),
+					component: 'qwatch',
+					search: all[movieId] ? all[movieId] : event.data.movie.title,
+					movie: event.data.movie,
+					page: 1,
+					clarification: all[movieId] ? true : false
 				});
-			}
+			});
 		});
 
 		if (Lampa.Manifest.app_digital >= 177) {
@@ -1930,7 +1939,7 @@
 		}
 	}
 
-	Lampa.Storage.listener.follow('change', function (event) {
+	/*Lampa.Storage.listener.add('change', function (event) {
 		if (event.name == 'activity') {
 			if (Lampa.Activity.active().component == 'qwatch') {
 				var add_ads = setInterval(function () {
@@ -1947,7 +1956,7 @@
 				}, 50);
 			}
 		}
-	})
+	});*/
 
 	if (!window.plugin_qwatch_ready) startPlugin();
 })();
