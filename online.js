@@ -167,7 +167,7 @@
 		}
 
 		this.initialize = function () {
-			var _this = this;
+			var self = this;
 			this.setLoading(true);
 
 			filter.onSearch = function (value) {
@@ -179,19 +179,19 @@
 					similar: true
 				});
 			};
-			filter.onBack = () => {
-				this.start();
+			filter.onBack = function () {
+				self.start();
 			};
 			filter.render().find('.selector').on('hover:enter', function () {
 				clearInterval(balancer_timer);
 			});
 			filter.render().find('.filter--search').appendTo(filter.render().find('.torrent-filter'));
-			filter.onSelect = (type, a, b) => {
+			filter.onSelect = function (type, a, b) {
 				if (type == 'filter') {
 					if (a.reset) {
 						clarificationSearchDelete();
 
-						this.replaceChoice({
+						self.replaceChoice({
 							season: 0,
 							voice: 0,
 							voice_url: '',
@@ -206,21 +206,21 @@
 						}, 10);
 					} else {
 						var url = filter_find[a.stype][b.index].url;
-						var choice = this.getChoice();
+						var choice = self.getChoice();
 						if (a.stype == 'voice') {
 							choice.voice_name = filter_find.voice[b.index].title;
 							choice.voice_url = url;
 						}
 						choice[a.stype] = b.index;
-						this.saveChoice(choice);
-						this.reset();
-						this.request(url);
+						self.saveChoice(choice);
+						self.reset();
+						self.request(url);
 						setTimeout(Lampa.Select.close, 10);
 					}
 				} else if (type == 'sort') {
 					Lampa.Select.close();
 					object.lampac_custom_select = a.source;
-					this.changeBalancer(a.source);
+					self.changeBalancer(a.source);
 				}
 			};
 			if (filter.addButtonBack)
@@ -240,19 +240,18 @@
 				sources = {};
 				sources[object.balancer] = { name: object.balancer };
 				balancer = object.balancer;
+				console.log('bl', balancer);
 				filter_sources = [];
 
-				return network["native"](account(object.url.replace('rjson=', 'nojson=')), this.parse.bind(this), () => {
+				return network["native"](account(object.url.replace('rjson=', 'nojson=')), this.parse.bind(this), function () {
 					files.render().find('.torrent-filter').remove();
-					this.showEmptyPage();
+					self.showEmptyPage();
 				}, false, {
 					dataType: 'text'
 				});
 			}
-			this.externalids().then(() => {
-				console.log('ft',_this);
-				console.log('at',this);
-				return this.createSource();
+			this.externalids().then(function () {
+				return self.createSource();
 			}).then(function (json) {
 				if (!availableBalancers.find(function (b) {
 					return balancer.slice(0, b.length) == b;
@@ -260,15 +259,17 @@
 					filter.render().find('.filter--search').addClass('hide');
 				}
 				this.search();
-			})["catch"]((err) => {
-				this.showNoConnectPage(err);
+			})["catch"](function (err) {
+				self.showNoConnectPage(err);
 			});
 		};
-		this.rch = function (json, noreset) {
-			var _this2 = this;
+		this.rch = function (json, noReset) {
+			var self = this;
 			rchRun(json, function () {
-				if (!noreset) _this2.find();
-				else noreset();
+				if (!noReset)
+					self.find();
+				else
+					noReset();
 			});
 		};
 		this.externalids = function () {
