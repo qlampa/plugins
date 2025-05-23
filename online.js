@@ -229,7 +229,7 @@
 			files.appendFiles(scroll.render());
 			files.appendHead(filter.render());
 			scroll.minus(files.render().find('.explorer__files-head'));
-			scroll.body().append(Lampa.Template.get('qwatch_content_loading'));
+			scroll.body().append(Lampa.Template.get('qwatch_page_content_loader'));
 
 			Lampa.Controller.enable('content');
 			this.setLoading(false);
