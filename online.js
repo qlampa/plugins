@@ -256,8 +256,8 @@
 					filter.render().find('.filter--search').addClass('hide');
 				}
 				_this.search();
-			})["catch"](function (e) {
-				_this.showNoConnectPage(e);
+			})["catch"](function (err) {
+				_this.showNoConnectPage(err);
 			});
 		};
 		this.rch = function (json, noreset) {
@@ -293,19 +293,19 @@
 					resolve();
 			});
 		};
-		this.updateBalancer = function (balancer_name) {
+		this.updateBalancer = function (balancerName) {
 			var last_select_balancer = Lampa.Storage.cache('online_last_balancer', 3000, {});
-			last_select_balancer[object.movie.id] = balancer_name;
+			last_select_balancer[object.movie.id] = balancerName;
 			Lampa.Storage.set('online_last_balancer', last_select_balancer);
 		};
-		this.changeBalancer = function (balancer_name) {
-			this.updateBalancer(balancer_name);
-			Lampa.Storage.set('online_balancer', balancer_name);
-			var to = this.getChoice(balancer_name);
+		this.changeBalancer = function (balancerName) {
+			this.updateBalancer(balancerName);
+			Lampa.Storage.set('online_balancer', balancerName);
+			var to = this.getChoice(balancerName);
 			var from = this.getChoice();
 			if (from.voice_name)
 				to.voice_name = from.voice_name;
-			this.saveChoice(to, balancer_name);
+			this.saveChoice(to, balancerName);
 			Lampa.Activity.replace();
 		};
 		this.requestParams = function (url) {
@@ -1410,24 +1410,25 @@
 			scroll.append(html);
 			this.setLoading(false);
 		};
-		this.showNoConnectPage = function (er) {
+		this.showNoConnectPage = function (err) {
 			var html = Lampa.Template.get('qwatch_page_no_answer', {});
 			html.find('.qwatch-empty__buttons').remove();
 			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('title_error'));
-			html.find('.qwatch-empty__time').text(er && er.accsdb ? er.msg : Lampa.Lang.translate('qwatch_balancer_no_results').replace('{balancer}', balancer[balancer].name));
+			console.log('qw', balancer);
+			html.find('.qwatch-empty__time').text(err && err.accsdb ? err.msg : Lampa.Lang.translate('qwatch_balancer_no_results').replace('{balancer}', balancer[balancer].name));
 			scroll.clear();
 			scroll.append(html);
 			this.setLoading(false);
 		};
-		this.showNoAnswerPage = function (error) {
+		this.showNoAnswerPage = function (err) {
 			var _this9 = this;
 			this.reset();
 			var html = Lampa.Template.get('qwatch_page_no_answer', {
 				balancer: balancer
 			});
-			if (error && error.accsdb) html.find('.qwatch-empty__title').html(error.msg);
+			if (err && err.accsdb) html.find('.qwatch-empty__title').html(err.msg);
 
-			var tic = error && error.accsdb ? 10 : 5;
+			var tic = err && err.accsdb ? 10 : 5;
 			html.find('.cancel').on('hover:enter', function () {
 				clearInterval(balancer_timer);
 			});
