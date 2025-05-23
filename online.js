@@ -119,8 +119,8 @@
 
 		var sources = {};
 		var last;
-		var source;
-		var balancer;
+		var activeSourceUrl;
+		var activeBalancer;
 		var initialized;
 		var balancer_timer;
 		var images = [];
@@ -143,7 +143,7 @@
 		var availableBalancers = ['kinotochka', 'kinopub', 'lumex', 'filmix', 'filmixtv', 'fxapi', 'redheadsound', 'animevost', 'animego', 'animedia', 'animebesst', 'anilibria', 'rezka', 'rhsprem', 'kodik', 'remux', 'animelib', 'kinoukr', 'rc/filmix', 'rc/fxapi', 'rc/rhs', 'vcdn', 'lumex', 'collaps', 'collaps-dash', 'hdvb', 'mirage', 'alloha'];
 
 		function balancerName(json) {
-			return (json.balancer || json.name.split(' ')[0]).toLowerCase();
+			return (json.balanser || json.name.split(' ')[0]).toLowerCase();
 		}
 
 		function clarificationSearchAdd(value) {
@@ -239,7 +239,7 @@
 				files.render().find('.filter--search').remove();
 				sources = {};
 				sources[object.balancer] = { name: object.balancer };
-				balancer = object.balancer;
+				activeBalancer = object.balancer;
 				filter_sources = [];
 
 				return network["native"](account(object.url.replace('rjson=', 'nojson=')), this.parse.bind(this), function () {
@@ -253,7 +253,7 @@
 				return self.createSource();
 			}).then(function (json) {
 				if (!availableBalancers.find(function (b) {
-					return balancer.slice(0, b.length) == b;
+					return activeBalancer.slice(0, b.length) == b;
 				})) {
 					filter.render().find('.filter--search').addClass('hide');
 				}
@@ -285,9 +285,9 @@
 
 					var url = hostAddress + 'externalids?' + query.join('&');
 					network.timeout(10000);
-					network.silent(account(url), function (json) {
-						for (var name in json)
-							object.movie[name] = json[name];
+					network.silent(account(url), function (externalIdJson) {
+						for (var name in externalIdJson)
+							object.movie[name] = externalIdJson[name];
 
 						resolve();
 					}, function () {
@@ -338,14 +338,14 @@
 			else
 				return Lampa.Storage.get('qwatch_balancer', filter_sources.length ? filter_sources[0] : '');
 		};
-		this.startSource = function (json) {
+		this.startSource = function (sourcesJson) {
 			return new Promise(function (resolve, reject) {
-				json.forEach(function (j) {
-					var name = balancerName(j);
-					sources[name] = {
-						url: j.url,
-						name: j.name,
-						show: typeof j.show == 'undefined' ? true : j.show
+				sourcesJson.forEach(function (entry) {
+					var balancerName = balancerName(entry);
+					sources[balancerName] = {
+						url: entry.url,
+						name: entry.name,
+						show: typeof entry.show == 'undefined' ? true : entry.show
 					};
 				});
 
@@ -353,15 +353,15 @@
 				if (filter_sources.length) {
 					var last_select_balancer = Lampa.Storage.cache('qwatch_last_balancer', 3000, {});
 					if (last_select_balancer[object.movie.id])
-						balancer = last_select_balancer[object.movie.id];
+						activeBalancer = last_select_balancer[object.movie.id];
 					else
-						balancer = Lampa.Storage.get('qwatch_balancer', filter_sources[0]);
+						activeBalancer = Lampa.Storage.get('qwatch_balancer', filter_sources[0]);
 
-					if (!sources[balancer] || (!sources[balancer].show && !object.lampac_custom_select))
-						balancer = filter_sources[0];
+					if (!sources[activeBalancer] || (!sources[activeBalancer].show && !object.lampac_custom_select))
+						activeBalancer = filter_sources[0];
 
-					source = sources[balancer].url;
-					resolve(json);
+					activeSourceUrl = sources[activeBalancer].url;
+					resolve(sourcesJson);
 				} else {
 					reject();
 				}
@@ -372,18 +372,18 @@
 			return new Promise(function (resolve, reject) {
 				var url = _this3.requestParams(hostAddress + 'lifeevents?memkey=' + (_this3.memkey || ''));
 				var red = false;
-				var gou = function gou(json, any) {
-					if (json.accsdb)
-						return reject(json);
+				var gou = function gou(targetJson, any) {
+					if (targetJson.accsdb)
+						return reject(targetJson);
 
 					var last_balancer = _this3.getLastChoiceBalancer();
 					if (!red) {
-						var _filter = json.online.filter(function (c) {
+						var _filter = targetJson.online.filter(function (c) {
 							return (any ? c.show : (c.show && c.name.toLowerCase() == last_balancer));
 						});
 						if (_filter.length) {
 							red = true;
-							resolve(json.online.filter(function (c) {
+							resolve(targetJson.online.filter(function (c) {
 								return c.show;
 							}));
 						} else if (any)
@@ -392,16 +392,16 @@
 				};
 				var fin = function fin(call) {
 					network.timeout(3000);
-					network.silent(account(url), function (json) {
+					network.silent(account(url), function (lifeSourcesJson) {
 						life_wait_times++;
 						filter_sources = [];
 						sources = {};
-						json.online.forEach(function (j) {
-							var name = balancerName(j);
-							sources[name] = {
-								url: j.url,
-								name: j.name,
-								show: typeof j.show == 'undefined' ? true : j.show
+						lifeSourcesJson.online.forEach(function (entry) {
+							var balancerName = balancerName(entry);
+							sources[balancerName] = {
+								url: entry.url,
+								name: entry.name,
+								show: typeof entry.show == 'undefined' ? true : entry.show
 							};
 						});
 						filter_sources = Lampa.Arrays.getKeys(sources);
@@ -409,18 +409,18 @@
 							return {
 								title: sources[e].name,
 								source: e,
-								selected: e == balancer,
+								selected: e == activeBalancer,
 								ghost: !sources[e].show
 							};
 						}));
-						filter.chosen('sort', [sources[balancer] ? sources[balancer].name : balancer]);
-						gou(json);
+						filter.chosen('sort', [sources[activeBalancer] ? sources[activeBalancer].name : activeBalancer]);
+						gou(lifeSourcesJson);
 						var lastBalancer = _this3.getLastChoiceBalancer();
-						if (life_wait_times > 15 || json.ready) {
+						if (life_wait_times > 15 || lifeSourcesJson.ready) {
 							filter.render().find('.qwatch-balancer-loader').remove();
-							gou(json, true);
+							gou(lifeSourcesJson, true);
 						} else if (!red && sources[lastBalancer] && sources[lastBalancer].show) {
-							gou(json, true);
+							gou(lifeSourcesJson, true);
 							life_wait_timer = setTimeout(fin, 1000);
 						} else
 							life_wait_timer = setTimeout(fin, 1000);
@@ -440,22 +440,22 @@
 			return new Promise(function (resolve, reject) {
 				var url = _this4.requestParams(hostAddress + 'lite/events?life=true');
 				network.timeout(15000);
-				network.silent(account(url), function (json) {
-					if (json.accsdb)
-						return reject(json);
+				network.silent(account(url), function (targetJson) {
+					if (targetJson.accsdb)
+						return reject(targetJson);
 
-					if (json.life) {
-						_this4.memkey = json.memkey;
-						if (json.title) {
+					if (targetJson.life) {
+						_this4.memkey = targetJson.memkey;
+						if (targetJson.title) {
 							if (object.movie.name)
-								object.movie.name = json.title;
+								object.movie.name = targetJson.title;
 							if (object.movie.title)
-								object.movie.title = json.title;
+								object.movie.title = targetJson.title;
 						}
 						filter.render().find('.filter--sort').append('<span class="qwatch-balancer-loader" style="width: 1.2em; height: 1.2em; margin-top: 0; background: url(./img/loader.svg) no-repeat 50% 50%; background-size: contain; margin-left: 0.5em"></span>');
 						_this4.lifeSource().then(_this4.startSource).then(resolve)["catch"](reject);
 					} else
-						_this4.startSource(json).then(resolve)["catch"](reject);
+						_this4.startSource(targetJson).then(resolve)["catch"](reject);
 				}, reject);
 			});
 		};
@@ -475,7 +475,7 @@
 			this.find();
 		};
 		this.find = function () {
-			this.request(this.requestParams(source));
+			this.request(this.requestParams(activeSourceUrl));
 		};
 		this.request = function (url) {
 			number_of_requests++;
@@ -490,9 +490,9 @@
 			} else
 				this.showEmptyPage();
 		};
-		this.parseJsonData = function (str, name) {
+		this.parseJsonData = function (jsonDataString, name) {
 			try {
-				var html = $('<div>' + str + '</div>');
+				var html = $('<div>' + jsonDataString + '</div>');
 				var elems = [];
 				html.find(name).each(function () {
 					var item = $(this);
@@ -670,7 +670,7 @@
 								Lampa.Player.play(first);
 								Lampa.Player.playlist(playlist);
 								item.mark();
-								_this5.updateBalancer(balancer);
+								_this5.updateBalancer(activeBalancer);
 							} else
 								Lampa.Noty.show(Lampa.Lang.translate('qwatch_no_link'));
 						} else
@@ -695,17 +695,17 @@
 				})
 			}, this.getChoice());
 		};
-		this.parse = function (str) {
-			var json = Lampa.Arrays.decodeJson(str, {});
-			if (Lampa.Arrays.isObject(str) && str.rch)
-				json = str;
+		this.parse = function (jsonDataString) {
+			var json = Lampa.Arrays.decodeJson(jsonDataString, {});
+			if (Lampa.Arrays.isObject(jsonDataString) && jsonDataString.rch)
+				json = jsonDataString;
 			if (json.rch)
 				return this.rch(json);
 			try {
-				var items = this.parseJsonData(str, '.videos__item');
-				var buttons = this.parseJsonData(str, '.videos__button');
-				if (items.length == 1 && items[0].method == 'link' && !items[0].similar) {
-					filter_find.season = items.map(function (s) {
+				var videoItems = this.parseJsonData(jsonDataString, '.videos__item');
+				var videoButtons = this.parseJsonData(jsonDataString, '.videos__button');
+				if (videoItems.length == 1 && videoItems[0].method == 'link' && !videoItems[0].similar) {
+					filter_find.season = videoItems.map(function (s) {
 						return {
 							title: s.text,
 							url: s.url
@@ -714,32 +714,34 @@
 					this.replaceChoice({
 						season: 0
 					});
-					this.request(items[0].url);
+					this.request(videoItems[0].url);
 				} else {
 					this.activity.loader(false);
-					var videos = items.filter(function (v) {
-						return v.method == 'play' || v.method == 'call';
+
+					var videos = videoItems.filter(function (videoItem) {
+						return videoItem.method == 'play' || videoItem.method == 'call';
 					});
-					var similar = items.filter(function (v) {
-						return v.similar;
+					var videosSimilar = videoItems.filter(function (videoItem) {
+						return videoItem.similar;
 					});
+
 					if (videos.length) {
-						if (buttons.length) {
-							filter_find.voice = buttons.map(function (b) {
+						if (videoButtons.length) {
+							filter_find.voice = videoButtons.map(function (b) {
 								return {
 									title: b.text,
 									url: b.url
 								};
 							});
-							var select_voice_url = this.getChoice(balancer).voice_url;
-							var select_voice_name = this.getChoice(balancer).voice_name;
-							var find_voice_url = buttons.find(function (v) {
+							var select_voice_url = this.getChoice(activeBalancer).voice_url;
+							var select_voice_name = this.getChoice(activeBalancer).voice_name;
+							var find_voice_url = videoButtons.find(function (v) {
 								return v.url == select_voice_url;
 							});
-							var find_voice_name = buttons.find(function (v) {
+							var find_voice_name = videoButtons.find(function (v) {
 								return v.text == select_voice_name;
 							});
-							var find_voice_active = buttons.find(function (v) {
+							var find_voice_active = videoButtons.find(function (v) {
 								return v.active;
 							}); ////console.log('b',buttons)
 							////console.log('u',find_voice_url)
@@ -748,21 +750,21 @@
 							if (find_voice_url && !find_voice_url.active) {
 								//console.log('Lampac', 'go to voice', find_voice_url);
 								this.replaceChoice({
-									voice: buttons.indexOf(find_voice_url),
+									voice: videoButtons.indexOf(find_voice_url),
 									voice_name: find_voice_url.text
 								});
 								this.request(find_voice_url.url);
 							} else if (find_voice_name && !find_voice_name.active) {
 								//console.log('Lampac', 'go to voice', find_voice_name);
 								this.replaceChoice({
-									voice: buttons.indexOf(find_voice_name),
+									voice: videoButtons.indexOf(find_voice_name),
 									voice_name: find_voice_name.text
 								});
 								this.request(find_voice_name.url);
 							} else {
 								if (find_voice_active) {
 									this.replaceChoice({
-										voice: buttons.indexOf(find_voice_active),
+										voice: videoButtons.indexOf(find_voice_active),
 										voice_name: find_voice_active.text
 									});
 								}
@@ -776,28 +778,26 @@
 							});
 							this.display(videos);
 						}
-					} else if (items.length) {
-						if (similar.length) {
-							this.similars(similar);
+					} else if (videoItems.length) {
+						if (videosSimilar.length) {
+							this.similars(videosSimilar);
 							this.activity.loader(false);
 						} else { //this.activity.loader(true)
-							filter_find.season = items.map(function (s) {
+							filter_find.season = videoItems.map(function (s) {
 								return {
 									title: s.text,
 									url: s.url
 								};
 							});
-							var select_season = this.getChoice(balancer).season;
-							var season = filter_find.season[select_season];
-							if (!season) season = filter_find.season[0];
-							//console.log('Lampac', 'go to season', season);
+							var select_season = this.getChoice(activeBalancer).season;
+							var season = filter_find.season[select_season] || filter_find.season[0]; // @test: ||
+							//if (!season) season = filter_find.season[0];
 							this.request(season.url);
 						}
 					} else
 						this.showNoAnswerPage(json);
 				}
 			} catch (err) {
-				//console.log('Lampac', 'error', err.stack);
 				this.showNoAnswerPage(err);
 			}
 		};
@@ -853,7 +853,7 @@
 			Lampa.Controller.enable('content');
 		};
 		this.getChoice = function (for_balancer) {
-			var data = Lampa.Storage.cache('qwatch_choice_' + (for_balancer || balancer), 3000, {});
+			var data = Lampa.Storage.cache('qwatch_choice_' + (for_balancer || activeBalancer), 3000, {});
 			var save = data[object.movie.id] || {};
 			Lampa.Arrays.extend(save, {
 				season: 0,
@@ -866,10 +866,10 @@
 			return save;
 		};
 		this.saveChoice = function (choice, for_balancer) {
-			var data = Lampa.Storage.cache('qwatch_choice_' + (for_balancer || balancer), 3000, {});
+			var data = Lampa.Storage.cache('qwatch_choice_' + (for_balancer || activeBalancer), 3000, {});
 			data[object.movie.id] = choice;
-			Lampa.Storage.set('qwatch_choice_' + (for_balancer || balancer), data);
-			this.updateBalancer(for_balancer || balancer);
+			Lampa.Storage.set('qwatch_choice_' + (for_balancer || activeBalancer), data);
+			this.updateBalancer(for_balancer || activeBalancer);
 		};
 		this.replaceChoice = function (choice, for_balancer) {
 			var to = this.getChoice(for_balancer);
@@ -947,7 +947,7 @@
 				return {
 					title: sources[e].name,
 					source: e,
-					selected: e == balancer,
+					selected: e == activeBalancer,
 					ghost: !sources[e].show
 				};
 			}));
@@ -967,7 +967,7 @@
 				}
 			}
 			filter.chosen('filter', select);
-			filter.chosen('sort', [sources[balancer].name]);
+			filter.chosen('sort', [sources[activeBalancer].name]);
 		};
 		this.getEpisodes = function (season, call) {
 			var episodes = [];
@@ -991,7 +991,8 @@
 			var file_id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
 			var watched = Lampa.Storage.cache('qwatch_watched_last', 5000, {});
 			if (set) {
-				if (!watched[file_id]) watched[file_id] = {};
+				if (!watched[file_id])
+					watched[file_id] = {};
 				Lampa.Arrays.extend(watched[file_id], set, true);
 				Lampa.Storage.set('qwatch_watched_last', watched);
 				this.updateWatched();
@@ -1142,14 +1143,15 @@
 							choice.movie_view = hash_behold;
 						else
 							choice.episodes_view[element.season] = episode_num;
-
 						_this8.saveChoice(choice);
+
 						var voice_name_text = choice.voice_name || element.voice_name || element.title;
 						if (voice_name_text.length > 30)
 							voice_name_text = voice_name_text.slice(0, 30) + '...';
+
 						_this8.watched({
-							balancer: balancer,
-							balancer_name: Lampa.Utils.capitalizeFirstLetter(sources[balancer] ? sources[balancer].name.split(' ')[0] : balancer),
+							balancer: activeBalancer,
+							balancer_name: Lampa.Utils.capitalizeFirstLetter(sources[activeBalancer] ? sources[activeBalancer].name.split(' ')[0] : activeBalancer),
 							voice_id: choice.voice_id,
 							voice_name: voice_name_text,
 							episode: element.episode,
@@ -1418,7 +1420,7 @@
 			var html = Lampa.Template.get('qwatch_page_no_answer', {});
 			html.find('.qwatch-empty__buttons').remove();
 			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('title_error'));
-			html.find('.qwatch-empty__time').text(err && err.accsdb ? err.msg : Lampa.Lang.translate('qwatch_balancer_no_results').replace('{balancer}', sources[balancer].name));
+			html.find('.qwatch-empty__time').text(err && err.accsdb ? err.msg : Lampa.Lang.translate('qwatch_balancer_no_results').replace('{balancer}', sources[activeBalancer].name));
 			scroll.clear();
 			scroll.append(html);
 			this.setLoading(false);
@@ -1427,7 +1429,7 @@
 			var _this9 = this;
 			this.reset();
 			var html = Lampa.Template.get('qwatch_page_no_answer', {
-				balancer: balancer
+				balancer: activeBalancer
 			});
 			if (err && err.accsdb)
 				html.find('.qwatch-empty__title').html(err.msg);
@@ -1449,12 +1451,12 @@
 				if (tic == 0) {
 					clearInterval(balancer_timer);
 					var keys = Lampa.Arrays.getKeys(sources);
-					var next = keys[keys.indexOf(balancer) + 1];
+					var next = keys[keys.indexOf(activeBalancer) + 1];
 					if (!next)
 						next = keys[0];
-					balancer = next;
+					activeBalancer = next;
 					if (Lampa.Activity.active().activity == _this9.activity)
-						_this9.changeBalancer(balancer);
+						_this9.changeBalancer(activeBalancer);
 				}
 			}, 1000);
 		};
@@ -1877,20 +1879,18 @@
 				'</div>');
 		}
 
-		var button =
-			'<div class="full-start__button selector view--qwatch" data-subtitle="' + manifest.name + ' ' + manifest.version + '">' +
-			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">' +
-			'<path fill="currentColor" fill-rule="evenodd" d="M3.07 6a8.025 8.025 0 014.262-3.544A12.802 12.802 0 005.595 6H3.07zm-.818 2A8.015 8.015 0 002 10c0 .69.088 1.36.252 2h2.89A13.886 13.886 0 015 10c0-.704.051-1.371.143-2H2.252zm4.916 0C7.06 8.62 7 9.286 7 10c0 .713.061 1.38.168 2h5.664c.107-.62.168-1.287.168-2 0-.714-.061-1.38-.168-2H7.168zm7.69 0c.09.629.142 1.296.142 2s-.051 1.371-.143 2h2.891c.165-.64.252-1.31.252-2s-.087-1.36-.252-2h-2.89zm2.072-2h-2.525a12.805 12.805 0 00-1.737-3.544A8.025 8.025 0 0116.93 6zm-4.638 0H7.708c.324-.865.725-1.596 1.124-2.195.422-.633.842-1.117 1.168-1.452.326.335.746.82 1.168 1.452.4.599.8 1.33 1.124 2.195zm-1.124 10.195c.4-.599.8-1.33 1.124-2.195H7.708c.324.865.725 1.596 1.124 2.195.422.633.842 1.117 1.168 1.452.326-.335.746-.82 1.168-1.452zM3.07 14h2.525a12.802 12.802 0 001.737 3.544A8.025 8.025 0 013.07 14zm9.762 3.305a12.9 12.9 0 01-.164.24A8.025 8.025 0 0016.93 14h-2.525a12.805 12.805 0 01-1.573 3.305zM20 10c0 5.52-4.472 9.994-9.99 10h-.022C4.47 19.994 0 15.519 0 10 0 4.477 4.477 0 10 0s10 4.477 10 10z"/>' +
-			'</svg>' +
-			'<span>#{qwatch_title}</span>' +
-			'</div>';
-
 		Lampa.Listener.follow('full', function (event) {
 			if (event.type == 'complite') {
 				var render = event.object.activity.render();
 
 				// render button
-				var onlineButton = $(Lampa.Lang.translate(button));
+				var onlineButton = $(Lampa.Lang.translate(
+					'<div class="full-start__button selector view--qwatch" data-subtitle="' + manifest.name + ' ' + manifest.version + '">' +
+					'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">' +
+					'<path fill="currentColor" fill-rule="evenodd" d="M3.07 6a8.025 8.025 0 014.262-3.544A12.802 12.802 0 005.595 6H3.07zm-.818 2A8.015 8.015 0 002 10c0 .69.088 1.36.252 2h2.89A13.886 13.886 0 015 10c0-.704.051-1.371.143-2H2.252zm4.916 0C7.06 8.62 7 9.286 7 10c0 .713.061 1.38.168 2h5.664c.107-.62.168-1.287.168-2 0-.714-.061-1.38-.168-2H7.168zm7.69 0c.09.629.142 1.296.142 2s-.051 1.371-.143 2h2.891c.165-.64.252-1.31.252-2s-.087-1.36-.252-2h-2.89zm2.072-2h-2.525a12.805 12.805 0 00-1.737-3.544A8.025 8.025 0 0116.93 6zm-4.638 0H7.708c.324-.865.725-1.596 1.124-2.195.422-.633.842-1.117 1.168-1.452.326.335.746.82 1.168 1.452.4.599.8 1.33 1.124 2.195zm-1.124 10.195c.4-.599.8-1.33 1.124-2.195H7.708c.324.865.725 1.596 1.124 2.195.422.633.842 1.117 1.168 1.452.326-.335.746-.82 1.168-1.452zM3.07 14h2.525a12.802 12.802 0 001.737 3.544A8.025 8.025 0 013.07 14zm9.762 3.305a12.9 12.9 0 01-.164.24A8.025 8.025 0 0016.93 14h-2.525a12.805 12.805 0 01-1.573 3.305zM20 10c0 5.52-4.472 9.994-9.99 10h-.022C4.47 19.994 0 15.519 0 10 0 4.477 4.477 0 10 0s10 4.477 10 10z"/>' +
+					'</svg>' +
+					'<span>#{qwatch_title}</span>' +
+					'</div>'));
 				var torrentButton = render.find('.view--torrent');
 				if (torrentButton.length)
 					torrentButton.before(onlineButton);
