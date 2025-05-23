@@ -11,11 +11,11 @@
 	}
 
 	var hubConnection;
-	var hub_timer;
+	var hubTimer;
 
 	function rchInvoke(json, call) {
 		if (hubConnection) {
-			clearTimeout(hub_timer);
+			clearTimeout(hubTimer);
 			hubConnection.stop();
 			hubConnection = null;
 		}
@@ -31,7 +31,7 @@
 		});
 
 		if (json.keepalive > 0) {
-			hub_timer = setTimeout(function () {
+			hubTimer = setTimeout(function () {
 				hubConnection.stop();
 				hubConnection = null;
 			}, 1000 * json.keepalive);
@@ -57,7 +57,7 @@
 						try {
 							var data = JSON.parse(xhr.responseText);
 							callback(null, data.ip);
-						} catch (e) {
+						} catch (err) {
 							callback('Ошибка парсинга JSON', null);
 						}
 					} else
@@ -128,6 +128,7 @@
 		var number_of_requests_timer;
 		var life_wait_times = 0;
 		var life_wait_timer;
+
 		var filter_sources = {};
 		var filter_translate = {
 			season: Lampa.Lang.translate('torrent_serial_season'),
@@ -166,10 +167,10 @@
 		}
 
 		this.initialize = function () {
-			var _this = this;
+			//var _this = this;
 			this.setLoading(true);
-			filter.onSearch = function (value) {
 
+			filter.onSearch = function (value) {
 				clarificationSearchAdd(value);
 
 				Lampa.Activity.replace({
@@ -178,19 +179,19 @@
 					similar: true
 				});
 			};
-			filter.onBack = function () {
-				_this.start();
+			filter.onBack = () => {
+				this.start();
 			};
 			filter.render().find('.selector').on('hover:enter', function () {
 				clearInterval(balancer_timer);
 			});
 			filter.render().find('.filter--search').appendTo(filter.render().find('.torrent-filter'));
-			filter.onSelect = function (type, a, b) {
+			filter.onSelect = (type, a, b) => {
 				if (type == 'filter') {
 					if (a.reset) {
 						clarificationSearchDelete();
 
-						_this.replaceChoice({
+						this.replaceChoice({
 							season: 0,
 							voice: 0,
 							voice_url: '',
@@ -205,27 +206,28 @@
 						}, 10);
 					} else {
 						var url = filter_find[a.stype][b.index].url;
-						var choice = _this.getChoice();
+						var choice = this.getChoice();
 						if (a.stype == 'voice') {
 							choice.voice_name = filter_find.voice[b.index].title;
 							choice.voice_url = url;
 						}
 						choice[a.stype] = b.index;
-						_this.saveChoice(choice);
-						_this.reset();
-						_this.request(url);
+						this.saveChoice(choice);
+						this.reset();
+						this.request(url);
 						setTimeout(Lampa.Select.close, 10);
 					}
 				} else if (type == 'sort') {
 					Lampa.Select.close();
 					object.lampac_custom_select = a.source;
-					_this.changeBalancer(a.source);
+					this.changeBalancer(a.source);
 				}
 			};
 			if (filter.addButtonBack)
 				filter.addButtonBack();
 			filter.render().find('.filter--sort span').text(Lampa.Lang.translate('qwatch_balancer'));
 			scroll.body().addClass('torrent-list');
+
 			files.appendFiles(scroll.render());
 			files.appendHead(filter.render());
 			scroll.minus(files.render().find('.explorer__files-head'));
@@ -240,24 +242,24 @@
 				balancer = object.balancer;
 				filter_sources = [];
 
-				return network["native"](account(object.url.replace('rjson=', 'nojson=')), this.parse.bind(this), function () {
+				return network["native"](account(object.url.replace('rjson=', 'nojson=')), this.parse.bind(this), () => {
 					files.render().find('.torrent-filter').remove();
-					_this.showEmptyPage();
+					this.showEmptyPage();
 				}, false, {
 					dataType: 'text'
 				});
 			}
-			this.externalids().then(function () {
-				return _this.createSource();
+			this.externalids().then(() => {
+				return this.createSource();
 			}).then(function (json) {
 				if (!availableBalancers.find(function (b) {
 					return balancer.slice(0, b.length) == b;
 				})) {
 					filter.render().find('.filter--search').addClass('hide');
 				}
-				_this.search();
-			})["catch"](function (err) {
-				_this.showNoConnectPage(err);
+				this.search();
+			})["catch"]((err) => {
+				this.showNoConnectPage(err);
 			});
 		};
 		this.rch = function (json, noreset) {
@@ -294,13 +296,13 @@
 			});
 		};
 		this.updateBalancer = function (balancerName) {
-			var last_select_balancer = Lampa.Storage.cache('online_last_balancer', 3000, {});
+			var last_select_balancer = Lampa.Storage.cache('qwatch_last_balancer', 3000, {});
 			last_select_balancer[object.movie.id] = balancerName;
-			Lampa.Storage.set('online_last_balancer', last_select_balancer);
+			Lampa.Storage.set('qwatch_last_balancer', last_select_balancer);
 		};
 		this.changeBalancer = function (balancerName) {
 			this.updateBalancer(balancerName);
-			Lampa.Storage.set('online_balancer', balancerName);
+			Lampa.Storage.set('qwatch_balancer', balancerName);
 			var to = this.getChoice(balancerName);
 			var from = this.getChoice();
 			if (from.voice_name)
@@ -328,11 +330,11 @@
 			return url + (url.indexOf('?') >= 0 ? '&' : '?') + query.join('&');
 		};
 		this.getLastChoiceBalancer = function () {
-			var last_select_balancer = Lampa.Storage.cache('online_last_balancer', 3000, {});
+			var last_select_balancer = Lampa.Storage.cache('qwatch_last_balancer', 3000, {});
 			if (last_select_balancer[object.movie.id])
 				return last_select_balancer[object.movie.id];
 			else
-				return Lampa.Storage.get('online_balancer', filter_sources.length ? filter_sources[0] : '');
+				return Lampa.Storage.get('qwatch_balancer', filter_sources.length ? filter_sources[0] : '');
 		};
 		this.startSource = function (json) {
 			return new Promise(function (resolve, reject) {
@@ -347,11 +349,11 @@
 
 				filter_sources = Lampa.Arrays.getKeys(sources);
 				if (filter_sources.length) {
-					var last_select_balancer = Lampa.Storage.cache('online_last_balancer', 3000, {});
+					var last_select_balancer = Lampa.Storage.cache('qwatch_last_balancer', 3000, {});
 					if (last_select_balancer[object.movie.id])
 						balancer = last_select_balancer[object.movie.id];
 					else
-						balancer = Lampa.Storage.get('online_balancer', filter_sources[0]);
+						balancer = Lampa.Storage.get('qwatch_balancer', filter_sources[0]);
 
 					if (!sources[balancer] || (!sources[balancer].show && !object.lampac_custom_select))
 						balancer = filter_sources[0];
@@ -849,7 +851,7 @@
 			Lampa.Controller.enable('content');
 		};
 		this.getChoice = function (for_balancer) {
-			var data = Lampa.Storage.cache('online_choice_' + (for_balancer || balancer), 3000, {});
+			var data = Lampa.Storage.cache('qwatch_choice_' + (for_balancer || balancer), 3000, {});
 			var save = data[object.movie.id] || {};
 			Lampa.Arrays.extend(save, {
 				season: 0,
@@ -862,9 +864,9 @@
 			return save;
 		};
 		this.saveChoice = function (choice, for_balancer) {
-			var data = Lampa.Storage.cache('online_choice_' + (for_balancer || balancer), 3000, {});
+			var data = Lampa.Storage.cache('qwatch_choice_' + (for_balancer || balancer), 3000, {});
 			data[object.movie.id] = choice;
-			Lampa.Storage.set('online_choice_' + (for_balancer || balancer), data);
+			Lampa.Storage.set('qwatch_choice_' + (for_balancer || balancer), data);
 			this.updateBalancer(for_balancer || balancer);
 		};
 		this.replaceChoice = function (choice, for_balancer) {
@@ -985,11 +987,11 @@
 		};
 		this.watched = function (set) {
 			var file_id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
-			var watched = Lampa.Storage.cache('online_watched_last', 5000, {});
+			var watched = Lampa.Storage.cache('qwatch_watched_last', 5000, {});
 			if (set) {
 				if (!watched[file_id]) watched[file_id] = {};
 				Lampa.Arrays.extend(watched[file_id], set, true);
-				Lampa.Storage.set('online_watched_last', watched);
+				Lampa.Storage.set('qwatch_watched_last', watched);
 				this.updateWatched();
 			} else
 				return watched[file_id];
@@ -1029,7 +1031,7 @@
 
 			this.updateWatched();
 			this.getEpisodes(items[0].season, function (episodes) {
-				var viewed = Lampa.Storage.cache('online_view', 5000, []);
+				var viewed = Lampa.Storage.cache('qwatch_view', 5000, []);
 				var serial = object.movie.name ? true : false;
 				var choice = _this8.getChoice();
 				var fully = window.innerWidth > 480;
@@ -1125,10 +1127,10 @@
 					}
 
 					element.mark = function () {
-						viewed = Lampa.Storage.cache('online_view', 5000, []);
+						viewed = Lampa.Storage.cache('qwatch_view', 5000, []);
 						if (viewed.indexOf(hash_behold) == -1) {
 							viewed.push(hash_behold);
-							Lampa.Storage.set('online_view', viewed);
+							Lampa.Storage.set('qwatch_view', viewed);
 							if (html.find('.qwatch__viewed').length == 0)
 								html.find('.qwatch__img').append('<div class="qwatch__viewed">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 						}
@@ -1153,11 +1155,11 @@
 						});
 					};
 					element.unmark = function () {
-						viewed = Lampa.Storage.cache('online_view', 5000, []);
+						viewed = Lampa.Storage.cache('qwatch_view', 5000, []);
 						if (viewed.indexOf(hash_behold) !== -1) {
 							Lampa.Arrays.remove(viewed, hash_behold);
-							Lampa.Storage.set('online_view', viewed);
-							Lampa.Storage.remove('online_view', hash_behold);
+							Lampa.Storage.set('qwatch_view', viewed);
+							Lampa.Storage.remove('qwatch_view', hash_behold);
 							html.find('.qwatch__viewed').remove();
 						}
 					};
@@ -1398,7 +1400,7 @@
 				params.onFile(show);
 			}).on('hover:focus', function () {
 				if (Lampa.Helper)
-					Lampa.Helper.show('online_file', Lampa.Lang.translate('helper_torrents'), params.html);
+					Lampa.Helper.show('qwatch_file', Lampa.Lang.translate('helper_torrents'), params.html);
 			});
 		};
 		this.showEmptyPage = function () {
@@ -1414,7 +1416,6 @@
 			var html = Lampa.Template.get('qwatch_page_no_answer', {});
 			html.find('.qwatch-empty__buttons').remove();
 			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('title_error'));
-			console.log('qw', balancer);
 			html.find('.qwatch-empty__time').text(err && err.accsdb ? err.msg : Lampa.Lang.translate('qwatch_balancer_no_results').replace('{balancer}', balancer[balancer].name));
 			scroll.clear();
 			scroll.append(html);
@@ -1426,7 +1427,8 @@
 			var html = Lampa.Template.get('qwatch_page_no_answer', {
 				balancer: balancer
 			});
-			if (err && err.accsdb) html.find('.qwatch-empty__title').html(err.msg);
+			if (err && err.accsdb)
+				html.find('.qwatch-empty__title').html(err.msg);
 
 			var tic = err && err.accsdb ? 10 : 5;
 			html.find('.cancel').on('hover:enter', function () {
@@ -1519,7 +1521,7 @@
 			clearInterval(balancer_timer);
 			clearTimeout(life_wait_timer);
 			if (hubConnection) {
-				clearTimeout(hub_timer);
+				clearTimeout(hubTimer);
 				hubConnection.stop();
 				hubConnection = null;
 			}
@@ -1920,9 +1922,9 @@
 		if (Lampa.Manifest.app_digital >= 177) {
 			var balancers_sync = ["filmix", 'filmixtv', "fxapi", "rezka", "rhsprem", "lumex", "videodb", "collaps", "collaps-dash", "hdvb", "zetflix", "kodik", "ashdi", "kinoukr", "kinotochka", "remux", "iframevideo", "cdnmovies", "anilibria", "animedia", "animego", "animevost", "animebesst", "redheadsound", "alloha", "animelib", "moonanime", "kinopub", "vibix", "vdbmovies", "fancdn", "cdnvideohub", "vokino", "rc/filmix", "rc/fxapi", "rc/rhs", "vcdn", "videocdn", "mirage", "hydraflix", "videasy", "vidsrc", "movpi", "vidlink", "twoembed", "autoembed", "smashystream", "autoembed", "rgshows", "pidtor", "videoseed"];
 			balancers_sync.forEach(function (name) {
-				Lampa.Storage.sync('online_choice_' + name, 'object_object');
+				Lampa.Storage.sync('qwatch_choice_' + name, 'object_object');
 			});
-			Lampa.Storage.sync('online_watched_last', 'object_object');
+			Lampa.Storage.sync('qwatch_watched_last', 'object_object');
 		}
 	}
 
