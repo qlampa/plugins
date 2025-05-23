@@ -1,22 +1,12 @@
 (function () {
 	'use strict';
 
-	var Defined = {
-		api: 'lampac',
-		localhost: 'https://rc.bwa.to/',
-		apn: 'http://apn.cfhttp.top/'
-	};
-
-	var unic_id = Lampa.Storage.get('lampac_unic_id', '');
-	if (!unic_id) {
-		unic_id = Lampa.Utils.uid(8).toLowerCase();
-		Lampa.Storage.set('lampac_unic_id', unic_id);
-	}
+	var hostAddress = 'https://smotret24.ru/';
 
 	if (!window.rch) {
-		Lampa.Utils.putScript(["http://rc.bwa.to/invc-rch.js"], function () { }, false, function () {
+		Lampa.Utils.putScript(["https://smotret24.ru/invc-rch.js"], function () { }, false, function () {
 			if (!window.rch.startTypeInvoke)
-				window.rch.typeInvoke('https://rc.bwa.to', function () { });
+				window.rch.typeInvoke('https://smotret24.ru', function () { });
 		}, true);
 	}
 
@@ -29,6 +19,7 @@
 			hubConnection.stop();
 			hubConnection = null;
 		}
+
 		hubConnection = new signalR.HubConnectionBuilder().withUrl(json.ws).build();
 		hubConnection.start().then(function () {
 			window.rch.Registry(json.result, hubConnection, function () {
@@ -38,6 +29,7 @@
 			Lampa.Noty.show(err.toString());
 			//return console.error(err.toString());
 		});
+
 		if (json.keepalive > 0) {
 			hub_timer = setTimeout(function () {
 				hubConnection.stop();
@@ -48,12 +40,11 @@
 
 	function rchRun(json, call) {
 		if (typeof signalR == 'undefined') {
-			Lampa.Utils.putScript(["https://rc.bwa.to/signalr-6.0.25_es5.js"], function () { }, false, function () {
+			Lampa.Utils.putScript(["https://smotret24.ru/signalr-6.0.25_es5.js"], function () { }, false, function () {
 				rchInvoke(json, call);
 			}, true);
-		} else {
+		} else
 			rchInvoke(json, call);
-		}
 	}
 
 	function account(url) {
@@ -69,9 +60,8 @@
 						} catch (e) {
 							callback('Ошибка парсинга JSON', null);
 						}
-					} else {
+					} else
 						callback('Ошибка запроса: ' + xhr.status, null);
-					}
 				}
 			};
 			xhr.onerror = function () {
@@ -84,18 +74,26 @@
 
 		if (url.indexOf('account_email=') == -1) {
 			var email = Lampa.Storage.get('account_email');
-			if (email) url = Lampa.Utils.addUrlComponent(url, 'account_email=' + encodeURIComponent(email));
+			if (email)
+				url = Lampa.Utils.addUrlComponent(url, 'account_email=' + encodeURIComponent(email));
 		}
 
 		if (url.indexOf('uid=') == -1) {
 			var uid = Lampa.Storage.get('lampac_unic_id', '');
-			if (uid) url = Lampa.Utils.addUrlComponent(url, 'uid=' + encodeURIComponent(uid));
+			if (!uid) {
+				uid = Lampa.Utils.uid(8).toLowerCase();
+				Lampa.Storage.set('lampac_unic_id', uid);
+			}
+			if (uid)
+				url = Lampa.Utils.addUrlComponent(url, 'uid=' + encodeURIComponent(uid));
 		}
 
 		if (url.indexOf('token=') == -1) {
 			var token = '';
-			if (token != '') url = Lampa.Utils.addUrlComponent(url, 'token=');
+			if (token != '')
+				url = Lampa.Utils.addUrlComponent(url, 'token=');
 		}
+
 		if (Lampa.Storage.get('user_ip') == '' && !Lampa.Storage.get('user_ip')) {
 			getIP(function (error, ip) {
 				if (!error && ip) {
@@ -104,9 +102,8 @@
 			});
 		}
 
-		if (Lampa.Storage.get('user_ip')) {
+		if (Lampa.Storage.get('user_ip'))
 			url = Lampa.Utils.addUrlComponent(url, 'user_ip=' + Lampa.Storage.get('user_ip'));
-		}
 
 		return url;
 	}
@@ -119,12 +116,13 @@
 		});
 		var files = new Lampa.Explorer(object);
 		var filter = new Lampa.Filter(object);
+
 		var sources = {};
 		var last;
 		var source;
-		var balanser;
+		var balancer;
 		var initialized;
-		var balanser_timer;
+		var balancer_timer;
 		var images = [];
 		var number_of_requests = 0;
 		var number_of_requests_timer;
@@ -140,42 +138,36 @@
 			season: [],
 			voice: []
 		};
-		var balansers_with_search = ['kinotochka', 'kinopub', 'lumex', 'filmix', 'filmixtv', 'fxapi', 'redheadsound', 'animevost', 'animego', 'animedia', 'animebesst', 'anilibria', 'rezka', 'rhsprem', 'kodik', 'remux', 'animelib', 'kinoukr', 'rc/filmix', 'rc/fxapi', 'rc/rhs', 'vcdn', 'lumex', 'collaps', 'collaps-dash', 'hdvb', 'mirage', 'alloha'];
 
-		function balanserName(j) {
-			var bals = j.balanser;
-			var name = j.name.split(' ')[0];
-			return (bals || name).toLowerCase();
+		var availableBalancers = ['kinotochka', 'kinopub', 'lumex', 'filmix', 'filmixtv', 'fxapi', 'redheadsound', 'animevost', 'animego', 'animedia', 'animebesst', 'anilibria', 'rezka', 'rhsprem', 'kodik', 'remux', 'animelib', 'kinoukr', 'rc/filmix', 'rc/fxapi', 'rc/rhs', 'vcdn', 'lumex', 'collaps', 'collaps-dash', 'hdvb', 'mirage', 'alloha'];
+
+		function balancerName(json) {
+			return (json.balancer || json.name.split(' ')[0]).toLowerCase();
 		}
 
 		function clarificationSearchAdd(value) {
 			var id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
 			var all = Lampa.Storage.get('clarification_search', '{}');
-
 			all[id] = value;
-
 			Lampa.Storage.set('clarification_search', all);
 		}
 
 		function clarificationSearchDelete() {
 			var id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
 			var all = Lampa.Storage.get('clarification_search', '{}');
-
 			delete all[id];
-
 			Lampa.Storage.set('clarification_search', all);
 		}
 
 		function clarificationSearchGet() {
 			var id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
 			var all = Lampa.Storage.get('clarification_search', '{}');
-
 			return all[id];
 		}
 
 		this.initialize = function () {
 			var _this = this;
-			this.loading(true);
+			this.setLoading(true);
 			filter.onSearch = function (value) {
 
 				clarificationSearchAdd(value);
@@ -190,7 +182,7 @@
 				_this.start();
 			};
 			filter.render().find('.selector').on('hover:enter', function () {
-				clearInterval(balanser_timer);
+				clearInterval(balancer_timer);
 			});
 			filter.render().find('.filter--search').appendTo(filter.render().find('.torrent-filter'));
 			filter.onSelect = function (type, a, b) {
@@ -227,28 +219,30 @@
 				} else if (type == 'sort') {
 					Lampa.Select.close();
 					object.lampac_custom_select = a.source;
-					_this.changeBalanser(a.source);
+					_this.changeBalancer(a.source);
 				}
 			};
-			if (filter.addButtonBack) filter.addButtonBack();
-			filter.render().find('.filter--sort span').text(Lampa.Lang.translate('lampac_balanser'));
+			if (filter.addButtonBack)
+				filter.addButtonBack();
+			filter.render().find('.filter--sort span').text(Lampa.Lang.translate('qwatch_balancer'));
 			scroll.body().addClass('torrent-list');
 			files.appendFiles(scroll.render());
 			files.appendHead(filter.render());
 			scroll.minus(files.render().find('.explorer__files-head'));
-			scroll.body().append(Lampa.Template.get('lampac_content_loading'));
+			scroll.body().append(Lampa.Template.get('qwatch_content_loading'));
+
 			Lampa.Controller.enable('content');
-			this.loading(false);
-			if (object.balanser) {
+			this.setLoading(false);
+			if (object.balancer) {
 				files.render().find('.filter--search').remove();
 				sources = {};
-				sources[object.balanser] = { name: object.balanser };
-				balanser = object.balanser;
+				sources[object.balancer] = { name: object.balancer };
+				balancer = object.balancer;
 				filter_sources = [];
 
 				return network["native"](account(object.url.replace('rjson=', 'nojson=')), this.parse.bind(this), function () {
 					files.render().find('.torrent-filter').remove();
-					_this.empty();
+					_this.showEmptyPage();
 				}, false, {
 					dataType: 'text'
 				});
@@ -256,14 +250,14 @@
 			this.externalids().then(function () {
 				return _this.createSource();
 			}).then(function (json) {
-				if (!balansers_with_search.find(function (b) {
-					return balanser.slice(0, b.length) == b;
+				if (!availableBalancers.find(function (b) {
+					return balancer.slice(0, b.length) == b;
 				})) {
 					filter.render().find('.filter--search').addClass('hide');
 				}
 				_this.search();
 			})["catch"](function (e) {
-				_this.noConnectToServer(e);
+				_this.showNoConnectPage(e);
 			});
 		};
 		this.rch = function (json, noreset) {
@@ -279,33 +273,39 @@
 					var query = [];
 					query.push('id=' + object.movie.id);
 					query.push('serial=' + (object.movie.name ? 1 : 0));
-					if (object.movie.imdb_id) query.push('imdb_id=' + (object.movie.imdb_id || ''));
-					if (object.movie.kinopoisk_id) query.push('kinopoisk_id=' + (object.movie.kinopoisk_id || ''));
-					var url = Defined.localhost + 'externalids?' + query.join('&');
+
+					if (object.movie.imdb_id)
+						query.push('imdb_id=' + (object.movie.imdb_id || ''));
+					if (object.movie.kinopoisk_id)
+						query.push('kinopoisk_id=' + (object.movie.kinopoisk_id || ''));
+
+					var url = hostAddress + 'externalids?' + query.join('&');
 					network.timeout(10000);
 					network.silent(account(url), function (json) {
-						for (var name in json) {
+						for (var name in json)
 							object.movie[name] = json[name];
-						}
+
 						resolve();
 					}, function () {
 						resolve();
 					});
-				} else resolve();
+				} else
+					resolve();
 			});
 		};
-		this.updateBalanser = function (balanser_name) {
-			var last_select_balanser = Lampa.Storage.cache('online_last_balanser', 3000, {});
-			last_select_balanser[object.movie.id] = balanser_name;
-			Lampa.Storage.set('online_last_balanser', last_select_balanser);
+		this.updateBalancer = function (balancer_name) {
+			var last_select_balancer = Lampa.Storage.cache('online_last_balancer', 3000, {});
+			last_select_balancer[object.movie.id] = balancer_name;
+			Lampa.Storage.set('online_last_balancer', last_select_balancer);
 		};
-		this.changeBalanser = function (balanser_name) {
-			this.updateBalanser(balanser_name);
-			Lampa.Storage.set('online_balanser', balanser_name);
-			var to = this.getChoice(balanser_name);
+		this.changeBalancer = function (balancer_name) {
+			this.updateBalancer(balancer_name);
+			Lampa.Storage.set('online_balancer', balancer_name);
+			var to = this.getChoice(balancer_name);
 			var from = this.getChoice();
-			if (from.voice_name) to.voice_name = from.voice_name;
-			this.saveChoice(to, balanser_name);
+			if (from.voice_name)
+				to.voice_name = from.voice_name;
+			this.saveChoice(to, balancer_name);
 			Lampa.Activity.replace();
 		};
 		this.requestParams = function (url) {
@@ -323,38 +323,40 @@
 			query.push('rchtype=' + (window.rch ? window.rch.type : ''));
 			query.push('clarification=' + (object.clarification ? 1 : 0));
 			query.push('similar=' + (object.similar ? true : false));
-			if (Lampa.Storage.get('account_email', '')) query.push('cub_id=' + Lampa.Utils.hash(Lampa.Storage.get('account_email', '')));
+			if (Lampa.Storage.get('account_email', ''))
+				query.push('cub_id=' + Lampa.Utils.hash(Lampa.Storage.get('account_email', '')));
 			return url + (url.indexOf('?') >= 0 ? '&' : '?') + query.join('&');
 		};
-		this.getLastChoiceBalanser = function () {
-			var last_select_balanser = Lampa.Storage.cache('online_last_balanser', 3000, {});
-			if (last_select_balanser[object.movie.id]) {
-				return last_select_balanser[object.movie.id];
-			} else {
-				return Lampa.Storage.get('online_balanser', filter_sources.length ? filter_sources[0] : '');
-			}
+		this.getLastChoiceBalancer = function () {
+			var last_select_balancer = Lampa.Storage.cache('online_last_balancer', 3000, {});
+			if (last_select_balancer[object.movie.id])
+				return last_select_balancer[object.movie.id];
+			else
+				return Lampa.Storage.get('online_balancer', filter_sources.length ? filter_sources[0] : '');
 		};
 		this.startSource = function (json) {
 			return new Promise(function (resolve, reject) {
 				json.forEach(function (j) {
-					var name = balanserName(j);
+					var name = balancerName(j);
 					sources[name] = {
 						url: j.url,
 						name: j.name,
 						show: typeof j.show == 'undefined' ? true : j.show
 					};
 				});
+
 				filter_sources = Lampa.Arrays.getKeys(sources);
 				if (filter_sources.length) {
-					var last_select_balanser = Lampa.Storage.cache('online_last_balanser', 3000, {});
-					if (last_select_balanser[object.movie.id]) {
-						balanser = last_select_balanser[object.movie.id];
-					} else {
-						balanser = Lampa.Storage.get('online_balanser', filter_sources[0]);
-					}
-					if (!sources[balanser]) balanser = filter_sources[0];
-					if (!sources[balanser].show && !object.lampac_custom_select) balanser = filter_sources[0];
-					source = sources[balanser].url;
+					var last_select_balancer = Lampa.Storage.cache('online_last_balancer', 3000, {});
+					if (last_select_balancer[object.movie.id])
+						balancer = last_select_balancer[object.movie.id];
+					else
+						balancer = Lampa.Storage.get('online_balancer', filter_sources[0]);
+
+					if (!sources[balancer] || (!sources[balancer].show && !object.lampac_custom_select))
+						balancer = filter_sources[0];
+
+					source = sources[balancer].url;
 					resolve(json);
 				} else {
 					reject();
@@ -364,23 +366,24 @@
 		this.lifeSource = function () {
 			var _this3 = this;
 			return new Promise(function (resolve, reject) {
-				var url = _this3.requestParams(Defined.localhost + 'lifeevents?memkey=' + (_this3.memkey || ''));
+				var url = _this3.requestParams(hostAddress + 'lifeevents?memkey=' + (_this3.memkey || ''));
 				var red = false;
 				var gou = function gou(json, any) {
-					if (json.accsdb) return reject(json);
-					var last_balanser = _this3.getLastChoiceBalanser();
+					if (json.accsdb)
+						return reject(json);
+
+					var last_balancer = _this3.getLastChoiceBalancer();
 					if (!red) {
 						var _filter = json.online.filter(function (c) {
-							return any ? c.show : c.show && c.name.toLowerCase() == last_balanser;
+							return (any ? c.show : (c.show && c.name.toLowerCase() == last_balancer));
 						});
 						if (_filter.length) {
 							red = true;
 							resolve(json.online.filter(function (c) {
 								return c.show;
 							}));
-						} else if (any) {
+						} else if (any)
 							reject();
-						}
 					}
 				};
 				var fin = function fin(call) {
@@ -390,7 +393,7 @@
 						filter_sources = [];
 						sources = {};
 						json.online.forEach(function (j) {
-							var name = balanserName(j);
+							var name = balancerName(j);
 							sources[name] = {
 								url: j.url,
 								name: j.name,
@@ -402,29 +405,27 @@
 							return {
 								title: sources[e].name,
 								source: e,
-								selected: e == balanser,
+								selected: e == balancer,
 								ghost: !sources[e].show
 							};
 						}));
-						filter.chosen('sort', [sources[balanser] ? sources[balanser].name : balanser]);
+						filter.chosen('sort', [sources[balancer] ? sources[balancer].name : balancer]);
 						gou(json);
-						var lastb = _this3.getLastChoiceBalanser();
+						var lastBalancer = _this3.getLastChoiceBalancer();
 						if (life_wait_times > 15 || json.ready) {
-							filter.render().find('.lampac-balanser-loader').remove();
+							filter.render().find('.qwatch-balancer-loader').remove();
 							gou(json, true);
-						} else if (!red && sources[lastb] && sources[lastb].show) {
+						} else if (!red && sources[lastBalancer] && sources[lastBalancer].show) {
 							gou(json, true);
 							life_wait_timer = setTimeout(fin, 1000);
-						} else {
+						} else
 							life_wait_timer = setTimeout(fin, 1000);
-						}
 					}, function () {
 						life_wait_times++;
-						if (life_wait_times > 15) {
+						if (life_wait_times > 15)
 							reject();
-						} else {
+						else
 							life_wait_timer = setTimeout(fin, 1000);
-						}
 					});
 				};
 				fin();
@@ -433,21 +434,24 @@
 		this.createSource = function () {
 			var _this4 = this;
 			return new Promise(function (resolve, reject) {
-				var url = _this4.requestParams(Defined.localhost + 'lite/events?life=true');
+				var url = _this4.requestParams(hostAddress + 'lite/events?life=true');
 				network.timeout(15000);
 				network.silent(account(url), function (json) {
-					if (json.accsdb) return reject(json);
+					if (json.accsdb)
+						return reject(json);
+
 					if (json.life) {
 						_this4.memkey = json.memkey;
 						if (json.title) {
-							if (object.movie.name) object.movie.name = json.title;
-							if (object.movie.title) object.movie.title = json.title;
+							if (object.movie.name)
+								object.movie.name = json.title;
+							if (object.movie.title)
+								object.movie.title = json.title;
 						}
-						filter.render().find('.filter--sort').append('<span class="lampac-balanser-loader" style="width: 1.2em; height: 1.2em; margin-top: 0; background: url(./img/loader.svg) no-repeat 50% 50%; background-size: contain; margin-left: 0.5em"></span>');
+						filter.render().find('.filter--sort').append('<span class="qwatch-balancer-loader" style="width: 1.2em; height: 1.2em; margin-top: 0; background: url(./img/loader.svg) no-repeat 50% 50%; background-size: contain; margin-left: 0.5em"></span>');
 						_this4.lifeSource().then(_this4.startSource).then(resolve)["catch"](reject);
-					} else {
+					} else
 						_this4.startSource(json).then(resolve)["catch"](reject);
-					}
 				}, reject);
 			});
 		};
@@ -472,16 +476,17 @@
 		this.request = function (url) {
 			number_of_requests++;
 			if (number_of_requests < 10) {
-				network["native"](account(url), this.parse.bind(this), this.doesNotAnswer.bind(this), false, {
+				network["native"](account(url), this.parse.bind(this), this.showNoAnswerPage.bind(this), false, {
 					dataType: 'text'
 				});
 				clearTimeout(number_of_requests_timer);
 				number_of_requests_timer = setTimeout(function () {
 					number_of_requests = 0;
 				}, 4000);
-			} else this.empty();
+			} else
+				this.showEmptyPage();
 		};
-		this.parseJsonDate = function (str, name) {
+		this.parseJsonData = function (str, name) {
 			try {
 				var html = $('<div>' + str + '</div>');
 				var elems = [];
@@ -503,14 +508,17 @@
 							text = object.movie.title;
 						}
 					}
-					if (episode) data.episode = parseInt(episode);
-					if (season) data.season = parseInt(season);
-					if (text) data.text = text;
+					if (episode)
+						data.episode = parseInt(episode);
+					if (season)
+						data.season = parseInt(season);
+					if (text)
+						data.text = text;
 					data.active = item.hasClass('active');
 					elems.push(data);
 				});
 				return elems;
-			} catch (e) {
+			} catch (err) {
 				return [];
 			}
 		};
@@ -523,7 +531,8 @@
 				newfile.url = file.stream;
 				call(newfile, {});
 			}
-			else if (file.method == 'play') call(file, {});
+			else if (file.method == 'play')
+				call(file, {});
 			else {
 				Lampa.Loading.start(function () {
 					Lampa.Loading.stop();
@@ -598,7 +607,8 @@
 							if (item.season) {
 								videos.forEach(function (elem) {
 									var cell = _this5.toPlayElement(elem);
-									if (elem == item) cell.url = json.url;
+									if (elem == item)
+										cell.url = json.url;
 									else {
 										if (elem.method == 'call') {
 											if (Lampa.Storage.field('player') !== 'inner') {
@@ -616,7 +626,7 @@
 															elem.mark();
 														} else {
 															cell.url = '';
-															Lampa.Noty.show(Lampa.Lang.translate('lampac_nolink'));
+															Lampa.Noty.show(Lampa.Lang.translate('qwatch_no_link'));
 														}
 														call();
 													}, function () {
@@ -625,18 +635,19 @@
 													});
 												};
 											}
-										} else {
+										} else
 											cell.url = elem.url;
-										}
 									}
 									_this5.orUrlReserve(cell);
 									_this5.setDefaultQuality(cell);
 									playlist.push(cell);
 								}); //Lampa.Player.playlist(playlist)
-							} else {
+							} else
 								playlist.push(first);
-							}
-							if (playlist.length > 1) first.playlist = playlist;
+
+							if (playlist.length > 1)
+								first.playlist = playlist;
+
 							if (first.url) {
 								var element = first;
 								element.isonline = true;
@@ -655,11 +666,11 @@
 								Lampa.Player.play(first);
 								Lampa.Player.playlist(playlist);
 								item.mark();
-								_this5.updateBalanser(balanser);
-							} else {
-								Lampa.Noty.show(Lampa.Lang.translate('lampac_nolink'));
-							}
-						} else Lampa.Noty.show(Lampa.Lang.translate('lampac_nolink'));
+								_this5.updateBalancer(balancer);
+							} else
+								Lampa.Noty.show(Lampa.Lang.translate('qwatch_no_link'));
+						} else
+							Lampa.Noty.show(Lampa.Lang.translate('qwatch_no_link'));
 					}, true);
 				},
 				onContextMenu: function onContextMenu(item, html, data, call) {
@@ -682,11 +693,13 @@
 		};
 		this.parse = function (str) {
 			var json = Lampa.Arrays.decodeJson(str, {});
-			if (Lampa.Arrays.isObject(str) && str.rch) json = str;
-			if (json.rch) return this.rch(json);
+			if (Lampa.Arrays.isObject(str) && str.rch)
+				json = str;
+			if (json.rch)
+				return this.rch(json);
 			try {
-				var items = this.parseJsonDate(str, '.videos__item');
-				var buttons = this.parseJsonDate(str, '.videos__button');
+				var items = this.parseJsonData(str, '.videos__item');
+				var buttons = this.parseJsonData(str, '.videos__button');
 				if (items.length == 1 && items[0].method == 'link' && !items[0].similar) {
 					filter_find.season = items.map(function (s) {
 						return {
@@ -714,8 +727,8 @@
 									url: b.url
 								};
 							});
-							var select_voice_url = this.getChoice(balanser).voice_url;
-							var select_voice_name = this.getChoice(balanser).voice_name;
+							var select_voice_url = this.getChoice(balancer).voice_url;
+							var select_voice_name = this.getChoice(balancer).voice_name;
 							var find_voice_url = buttons.find(function (v) {
 								return v.url == select_voice_url;
 							});
@@ -770,19 +783,18 @@
 									url: s.url
 								};
 							});
-							var select_season = this.getChoice(balanser).season;
+							var select_season = this.getChoice(balancer).season;
 							var season = filter_find.season[select_season];
 							if (!season) season = filter_find.season[0];
 							//console.log('Lampac', 'go to season', season);
 							this.request(season.url);
 						}
-					} else {
-						this.doesNotAnswer(json);
-					}
+					} else
+						this.showNoAnswerPage(json);
 				}
-			} catch (e) {
-				//console.log('Lampac', 'error', e.stack);
-				this.doesNotAnswer(e);
+			} catch (err) {
+				//console.log('Lampac', 'error', err.stack);
+				this.showNoAnswerPage(err);
 			}
 		};
 		this.similars = function (json) {
@@ -791,22 +803,26 @@
 			json.forEach(function (elem) {
 				elem.title = elem.text;
 				elem.info = '';
+
 				var info = [];
 				var year = ((elem.start_date || elem.year || object.movie.release_date || object.movie.first_air_date || '') + '').slice(0, 4);
-				if (year) info.push(year);
-				if (elem.details) info.push(elem.details);
+				if (year)
+					info.push(year);
+				if (elem.details)
+					info.push(elem.details);
+
 				var name = elem.title || elem.text;
 				elem.title = name;
 				elem.time = elem.time || '';
-				elem.info = info.join('<span class="online-prestige-split">●</span>');
-				var item = Lampa.Template.get('lampac_prestige_folder', elem);
+				elem.info = info.join('<span class="qwatch-split">●</span>');
+				var item = Lampa.Template.get('qwatch_page_folder', elem);
 				if (elem.img) {
 					var image = $('<img style="height: 7em; width: 7em; border-radius: 0.3em;"/>');
-					item.find('.online-prestige__folder').empty().append(image);
+					item.find('.qwatch__folder').empty().append(image);
 
 					if (elem.img !== undefined) {
 						if (elem.img.charAt(0) === '/')
-							elem.img = Defined.localhost + elem.img.substring(1);
+							elem.img = hostAddress + elem.img.substring(1);
 						if (elem.img.indexOf('/proxyimg') !== -1)
 							elem.img = account(elem.img);
 					}
@@ -816,9 +832,9 @@
 				item.on('hover:enter', function () {
 					_this6.reset();
 					_this6.request(elem.url);
-				}).on('hover:focus', function (e) {
-					last = e.target;
-					scroll.update($(e.target), true);
+				}).on('hover:focus', function (event) {
+					last = event.target;
+					scroll.update($(event.target), true);
 				});
 				scroll.append(item);
 			});
@@ -832,8 +848,8 @@
 			}, this.getChoice());
 			Lampa.Controller.enable('content');
 		};
-		this.getChoice = function (for_balanser) {
-			var data = Lampa.Storage.cache('online_choice_' + (for_balanser || balanser), 3000, {});
+		this.getChoice = function (for_balancer) {
+			var data = Lampa.Storage.cache('online_choice_' + (for_balancer || balancer), 3000, {});
 			var save = data[object.movie.id] || {};
 			Lampa.Arrays.extend(save, {
 				season: 0,
@@ -845,16 +861,16 @@
 			});
 			return save;
 		};
-		this.saveChoice = function (choice, for_balanser) {
-			var data = Lampa.Storage.cache('online_choice_' + (for_balanser || balanser), 3000, {});
+		this.saveChoice = function (choice, for_balancer) {
+			var data = Lampa.Storage.cache('online_choice_' + (for_balancer || balancer), 3000, {});
 			data[object.movie.id] = choice;
-			Lampa.Storage.set('online_choice_' + (for_balanser || balanser), data);
-			this.updateBalanser(for_balanser || balanser);
+			Lampa.Storage.set('online_choice_' + (for_balancer || balancer), data);
+			this.updateBalancer(for_balancer || balancer);
 		};
-		this.replaceChoice = function (choice, for_balanser) {
-			var to = this.getChoice(for_balanser);
+		this.replaceChoice = function (choice, for_balancer) {
+			var to = this.getChoice(for_balancer);
 			Lampa.Arrays.extend(to, choice, true);
-			this.saveChoice(to, for_balanser);
+			this.saveChoice(to, for_balancer);
 		};
 		this.clearImages = function () {
 			images.forEach(function (img) {
@@ -869,18 +885,18 @@
 		 */
 		this.reset = function () {
 			last = false;
-			clearInterval(balanser_timer);
+			clearInterval(balancer_timer);
 			network.clear();
 			this.clearImages();
 			scroll.render().find('.empty').remove();
 			scroll.clear();
 			scroll.reset();
-			scroll.body().append(Lampa.Template.get('lampac_content_loading'));
+			scroll.body().append(Lampa.Template.get('qwatch_page_content_loader'));
 		};
 		/**
 		 * Загрузка
 		 */
-		this.loading = function (status) {
+		this.setLoading = function (status) {
 			if (status) this.activity.loader(true);
 			else {
 				this.activity.loader(false);
@@ -918,14 +934,16 @@
 				reset: true
 			});
 			this.saveChoice(choice);
-			if (filter_items.voice && filter_items.voice.length) add('voice', Lampa.Lang.translate('torrent_parser_voice'));
-			if (filter_items.season && filter_items.season.length) add('season', Lampa.Lang.translate('torrent_serial_season'));
+			if (filter_items.voice && filter_items.voice.length)
+				add('voice', Lampa.Lang.translate('torrent_parser_voice'));
+			if (filter_items.season && filter_items.season.length)
+				add('season', Lampa.Lang.translate('torrent_serial_season'));
 			filter.set('filter', select);
 			filter.set('sort', filter_sources.map(function (e) {
 				return {
 					title: sources[e].name,
 					source: e,
-					selected: e == balanser,
+					selected: e == balancer,
 					ghost: !sources[e].show
 				};
 			}));
@@ -935,25 +953,23 @@
 		 * Показать что выбрано в фильтре
 		 */
 		this.selected = function (filter_items) {
-			var need = this.getChoice(),
-				select = [];
+			var need = this.getChoice(), select = [];
 			for (var i in need) {
 				if (filter_items[i] && filter_items[i].length) {
-					if (i == 'voice') {
+					if (i == 'voice')
 						select.push(filter_translate[i] + ': ' + filter_items[i][need[i]]);
-					} else if (i !== 'source') {
-						if (filter_items.season.length >= 1) {
-							select.push(filter_translate.season + ': ' + filter_items[i][need[i]]);
-						}
-					}
+					else if (i !== 'source' && filter_items.season.length >= 1)
+						select.push(filter_translate.season + ': ' + filter_items[i][need[i]]);
 				}
 			}
 			filter.chosen('filter', select);
-			filter.chosen('sort', [sources[balanser].name]);
+			filter.chosen('sort', [sources[balancer].name]);
 		};
 		this.getEpisodes = function (season, call) {
 			var episodes = [];
-			if (['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1) return call(episodes);
+			if (['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
+				return call(episodes);
+
 			if (typeof object.movie.id == 'number' && object.movie.name) {
 				var tmdburl = 'tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru');
 				var baseurl = Lampa.TMDB.api(tmdburl);
@@ -964,7 +980,8 @@
 				}, function (a, c) {
 					call(episodes);
 				});
-			} else call(episodes);
+			} else
+				call(episodes);
 		};
 		this.watched = function (set) {
 			var file_id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
@@ -974,23 +991,28 @@
 				Lampa.Arrays.extend(watched[file_id], set, true);
 				Lampa.Storage.set('online_watched_last', watched);
 				this.updateWatched();
-			} else {
+			} else
 				return watched[file_id];
-			}
 		};
 		this.updateWatched = function () {
 			var watched = this.watched();
-			var body = scroll.body().find('.online-prestige-watched .online-prestige-watched__body').empty();
+			var body = scroll.body().find('.qwatch-watched .qwatch-watched__body').empty();
 			if (watched) {
 				var line = [];
-				if (watched.balanser_name) line.push(watched.balanser_name);
-				if (watched.voice_name) line.push(watched.voice_name);
-				if (watched.season) line.push(Lampa.Lang.translate('torrent_serial_season') + ' ' + watched.season);
-				if (watched.episode) line.push(Lampa.Lang.translate('torrent_serial_episode') + ' ' + watched.episode);
+				if (watched.balancer_name)
+					line.push(watched.balancer_name);
+				if (watched.voice_name)
+					line.push(watched.voice_name);
+				if (watched.season)
+					line.push(Lampa.Lang.translate('torrent_serial_season') + ' ' + watched.season);
+				if (watched.episode)
+					line.push(Lampa.Lang.translate('torrent_serial_episode') + ' ' + watched.episode);
+
 				line.forEach(function (n) {
 					body.append('<span>' + n + '</span>');
 				});
-			} else body.append('<span>' + Lampa.Lang.translate('lampac_no_watch_history') + '</span>');
+			} else
+				body.append('<span>' + Lampa.Lang.translate('qwatch_no_watch_history') + '</span>');
 		};
 		/**
 		 * Отрисовка файлов
@@ -998,9 +1020,13 @@
 		this.draw = function (items) {
 			var _this8 = this;
 			var params = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
-			if (!items.length) return this.empty();
+			if (!items.length)
+				return this.showEmptyPage();
+
 			scroll.clear();
-			if (!object.balanser) scroll.append(Lampa.Template.get('lampac_prestige_watched', {}));
+			if (!object.balancer)
+				scroll.append(Lampa.Template.get('qwatch_page_watched', {}));
+
 			this.updateWatched();
 			this.getEpisodes(items[0].season, function (episodes) {
 				var viewed = Lampa.Storage.cache('online_view', 5000, []);
@@ -1020,6 +1046,7 @@
 						element.qualitys = element.quality;
 						element.quality = Lampa.Arrays.getKeys(element.quality)[0];
 					}
+
 					Lampa.Arrays.extend(element, {
 						voice_name: voice_name,
 						info: voice_name.length > 60 ? voice_name.substr(0, 60) + '...' : voice_name,
@@ -1032,79 +1059,93 @@
 						hash_timeline: hash_timeline,
 						hash_behold: hash_behold
 					};
+
 					var info = [];
 					if (element.season) {
 						element.translate_episode_end = _this8.getLastEpisode(items);
 						element.translate_voice = element.voice_name;
 					}
-					if (element.text && !episode) element.title = element.text;
+					if (element.text && !episode)
+						element.title = element.text;
 					element.timeline = Lampa.Timeline.view(hash_timeline);
+
 					if (episode) {
 						element.title = episode.name;
-						if (element.info.length < 30 && episode.vote_average) info.push(Lampa.Template.get('lampac_prestige_rate', {
+						if (element.info.length < 30 && episode.vote_average) info.push(Lampa.Template.get('qwatch_entry_rating', {
 							rate: parseFloat(episode.vote_average + '').toFixed(1)
 						}, true));
 						if (episode.air_date && fully) info.push(Lampa.Utils.parseTime(episode.air_date).full);
 					} else if (object.movie.release_date && fully) {
 						info.push(Lampa.Utils.parseTime(object.movie.release_date).full);
 					}
-					if (!serial && object.movie.tagline && element.info.length < 30) info.push(object.movie.tagline);
-					if (element.info) info.push(element.info);
-					if (info.length) element.info = info.map(function (i) {
-						return '<span>' + i + '</span>';
-					}).join('<span class="online-prestige-split">●</span>');
-					var html = Lampa.Template.get('lampac_prestige_full', element);
-					var loader = html.find('.online-prestige__loader');
-					var image = html.find('.online-prestige__img');
-					if (object.balanser) image.hide();
+					if (!serial && object.movie.tagline && element.info.length < 30)
+						info.push(object.movie.tagline);
+					if (element.info)
+						info.push(element.info);
+					if (info.length)
+						element.info = info.map(function (i) {
+							return '<span>' + i + '</span>';
+						}).join('<span class="qwatch-split">●</span>');
+
+					var html = Lampa.Template.get('qwatch_page_full', element);
+					var loader = html.find('.qwatch__loader');
+					var image = html.find('.qwatch__img');
+					if (object.balancer)
+						image.hide();
+
 					if (!serial) {
-						if (choice.movie_view == hash_behold) scroll_to_element = html;
-					} else if (typeof episode_last !== 'undefined' && episode_last == episode_num) {
+						if (choice.movie_view == hash_behold)
+							scroll_to_element = html;
+					} else if (typeof episode_last !== 'undefined' && episode_last == episode_num)
 						scroll_to_element = html;
-					}
+
 					if (serial && !episode) {
-						image.append('<div class="online-prestige__episode-number">' + ('0' + (element.episode || index + 1)).slice(-2) + '</div>');
+						image.append('<div class="qwatch__episode-number">' + ('0' + (element.episode || index + 1)).slice(-2) + '</div>');
 						loader.remove();
-					} else if (!serial && ['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1) loader.remove();
+					} else if (!serial && ['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
+						loader.remove();
 					else {
 						var img = html.find('img')[0];
 						img.onerror = function () {
 							img.src = './img/img_broken.svg';
 						};
 						img.onload = function () {
-							image.addClass('online-prestige__img--loaded');
+							image.addClass('qwatch__img--loaded');
 							loader.remove();
-							if (serial) image.append('<div class="online-prestige__episode-number">' + ('0' + (element.episode || index + 1)).slice(-2) + '</div>');
+							if (serial) image.append('<div class="qwatch__episode-number">' + ('0' + (element.episode || index + 1)).slice(-2) + '</div>');
 						};
 						img.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
 						images.push(img);
 					}
-					html.find('.online-prestige__timeline').append(Lampa.Timeline.render(element.timeline));
+
+					html.find('.qwatch__timeline').append(Lampa.Timeline.render(element.timeline));
 					if (viewed.indexOf(hash_behold) !== -1) {
 						scroll_to_mark = html;
-						html.find('.online-prestige__img').append('<div class="online-prestige__viewed">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
+						html.find('.qwatch__img').append('<div class="qwatch__viewed">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 					}
+
 					element.mark = function () {
 						viewed = Lampa.Storage.cache('online_view', 5000, []);
 						if (viewed.indexOf(hash_behold) == -1) {
 							viewed.push(hash_behold);
 							Lampa.Storage.set('online_view', viewed);
-							if (html.find('.online-prestige__viewed').length == 0) {
-								html.find('.online-prestige__img').append('<div class="online-prestige__viewed">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
-							}
+							if (html.find('.qwatch__viewed').length == 0)
+								html.find('.qwatch__img').append('<div class="qwatch__viewed">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 						}
+
 						choice = _this8.getChoice();
-						if (!serial) {
+						if (!serial)
 							choice.movie_view = hash_behold;
-						} else {
+						else
 							choice.episodes_view[element.season] = episode_num;
-						}
+
 						_this8.saveChoice(choice);
 						var voice_name_text = choice.voice_name || element.voice_name || element.title;
-						if (voice_name_text.length > 30) voice_name_text = voice_name_text.slice(0, 30) + '...';
+						if (voice_name_text.length > 30)
+							voice_name_text = voice_name_text.slice(0, 30) + '...';
 						_this8.watched({
-							balanser: balanser,
-							balanser_name: Lampa.Utils.capitalizeFirstLetter(sources[balanser] ? sources[balanser].name.split(' ')[0] : balanser),
+							balancer: balancer,
+							balancer_name: Lampa.Utils.capitalizeFirstLetter(sources[balancer] ? sources[balancer].name.split(' ')[0] : balancer),
 							voice_id: choice.voice_id,
 							voice_name: voice_name_text,
 							episode: element.episode,
@@ -1117,7 +1158,7 @@
 							Lampa.Arrays.remove(viewed, hash_behold);
 							Lampa.Storage.set('online_view', viewed);
 							Lampa.Storage.remove('online_view', hash_behold);
-							html.find('.online-prestige__viewed').remove();
+							html.find('.qwatch__viewed').remove();
 						}
 					};
 					element.timeclear = function () {
@@ -1134,7 +1175,9 @@
 						if (params.onFocus) params.onFocus(element, html, data);
 						scroll.update($(e.target), true);
 					});
-					if (params.onRender) params.onRender(element, html, data);
+					if (params.onRender)
+						params.onRender(element, html, data);
+
 					_this8.contextMenu({
 						html: html,
 						element: element,
@@ -1154,59 +1197,65 @@
 					});
 					scroll.append(html);
 				});
+
 				if (serial && episodes.length > items.length && !params.similars) {
 					var left = episodes.slice(items.length);
 					left.forEach(function (episode) {
 						var info = [];
-						if (episode.vote_average) info.push(Lampa.Template.get('lampac_prestige_rate', {
-							rate: parseFloat(episode.vote_average + '').toFixed(1)
-						}, true));
-						if (episode.air_date) info.push(Lampa.Utils.parseTime(episode.air_date).full);
-						var air = new Date((episode.air_date + '').replace(/-/g, '/'));
-						var now = Date.now();
-						var day = Math.round((air.getTime() - now) / (24 * 60 * 60 * 1000));
-						var txt = Lampa.Lang.translate('full_episode_days_left') + ': ' + day;
-						var html = Lampa.Template.get('lampac_prestige_full', {
+						if (episode.vote_average)
+							info.push(Lampa.Template.get('qwatch_entry_rating', {
+								rate: parseFloat(episode.vote_average + '').toFixed(1)
+							}, true));
+						if (episode.air_date)
+							info.push(Lampa.Utils.parseTime(episode.air_date).full);
+
+						var airDate = new Date((episode.air_date + '').replace(/-/g, '/'));
+						var daysLeft = Math.round((airDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+						var daysLeftText = Lampa.Lang.translate('full_episode_days_left') + ': ' + daysLeft;
+						var html = Lampa.Template.get('qwatch_page_full', {
 							time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true),
 							info: info.length ? info.map(function (i) {
 								return '<span>' + i + '</span>';
-							}).join('<span class="online-prestige-split">●</span>') : '',
+							}).join('<span class="qwatch-split">●</span>') : '',
 							title: episode.name,
-							quality: day > 0 ? txt : ''
+							quality: daysLeft > 0 ? daysLeftText : ''
 						});
-						var loader = html.find('.online-prestige__loader');
-						var image = html.find('.online-prestige__img');
+
+						var loader = html.find('.qwatch__loader');
+						var image = html.find('.qwatch__img');
 						var season = items[0] ? items[0].season : 1;
-						html.find('.online-prestige__timeline').append(Lampa.Timeline.render(Lampa.Timeline.view(Lampa.Utils.hash([season, episode.episode_number, object.movie.original_title].join('')))));
+						html.find('.qwatch__timeline').append(Lampa.Timeline.render(Lampa.Timeline.view(Lampa.Utils.hash([season, episode.episode_number, object.movie.original_title].join('')))));
 						var img = html.find('img')[0];
 						if (episode.still_path) {
 							img.onerror = function () {
 								img.src = './img/img_broken.svg';
 							};
 							img.onload = function () {
-								image.addClass('online-prestige__img--loaded');
+								image.addClass('qwatch__img--loaded');
 								loader.remove();
-								image.append('<div class="online-prestige__episode-number">' + ('0' + episode.episode_number).slice(-2) + '</div>');
+								image.append('<div class="qwatch__episode-number">' + ('0' + episode.episode_number).slice(-2) + '</div>');
 							};
 							img.src = Lampa.TMDB.image('t/p/w300' + episode.still_path);
 							images.push(img);
 						} else {
 							loader.remove();
-							image.append('<div class="online-prestige__episode-number">' + ('0' + episode.episode_number).slice(-2) + '</div>');
+							image.append('<div class="qwatch__episode-number">' + ('0' + episode.episode_number).slice(-2) + '</div>');
 						}
-						html.on('hover:focus', function (e) {
-							last = e.target;
-							scroll.update($(e.target), true);
+
+						html.on('hover:focus', function (event) {
+							last = event.target;
+							scroll.update($(event.target), true);
 						});
 						html.css('opacity', '0.5');
 						scroll.append(html);
 					});
 				}
-				if (scroll_to_element) {
+
+				if (scroll_to_element)
 					last = scroll_to_element[0];
-				} else if (scroll_to_mark) {
+				else if (scroll_to_mark)
 					last = scroll_to_mark[0];
-				}
+
 				Lampa.Controller.enable('content');
 			});
 		};
@@ -1220,7 +1269,7 @@
 					var menu = [];
 					if (Lampa.Platform.is('webos')) {
 						menu.push({
-							title: Lampa.Lang.translate('player_lauch') + ' - Webos',
+							title: Lampa.Lang.translate('player_lauch') + ' - WebOS',
 							player: 'webos'
 						});
 					}
@@ -1235,7 +1284,7 @@
 						player: 'lampa'
 					});
 					menu.push({
-						title: Lampa.Lang.translate('lampac_video'),
+						title: Lampa.Lang.translate('qwatch_video'),
 						separator: true
 					});
 					menu.push({
@@ -1256,26 +1305,27 @@
 							copylink: true
 						});
 					}
-					if (window.lampac_online_context_menu)
-						window.lampac_online_context_menu.push(menu, extra, params);
+					if (window.qwatch_online_context_menu)
+						window.qwatch_online_context_menu.push(menu, extra, params);
 					menu.push({
 						title: Lampa.Lang.translate('more'),
 						separator: true
 					});
 					if (Lampa.Account.logged() && params.element && typeof params.element.season !== 'undefined' && params.element.translate_voice) {
 						menu.push({
-							title: Lampa.Lang.translate('lampac_voice_subscribe'),
+							title: Lampa.Lang.translate('qwatch_voice_subscribe'),
 							subscribe: true
 						});
 					}
 					menu.push({
-						title: Lampa.Lang.translate('lampac_clear_all_marks'),
+						title: Lampa.Lang.translate('qwatch_clear_all_marks'),
 						clearallmark: true
 					});
 					menu.push({
-						title: Lampa.Lang.translate('lampac_clear_all_timecodes'),
+						title: Lampa.Lang.translate('qwatch_clear_all_timecodes'),
 						timeclearall: true
 					});
+
 					Lampa.Select.show({
 						title: Lampa.Lang.translate('title_action'),
 						items: menu,
@@ -1288,13 +1338,16 @@
 							if (a.timeclear) params.element.timeclear();
 							if (a.clearallmark) params.onClearAllMark();
 							if (a.timeclearall) params.onClearAllTime();
-							if (window.lampac_online_context_menu)
-								window.lampac_online_context_menu.onSelect(a, params);
+							if (window.qwatch_online_context_menu)
+								window.qwatch_online_context_menu.onSelect(a, params);
+
 							Lampa.Controller.toggle(enabled);
+
 							if (a.player) {
 								Lampa.Player.runas(a.player);
 								params.html.trigger('hover:enter');
 							}
+
 							if (a.copylink) {
 								if (extra.quality) {
 									var qual = [];
@@ -1326,6 +1379,7 @@
 									});
 								}
 							}
+
 							if (a.subscribe) {
 								Lampa.Account.subscribeToTranslation({
 									card: object.movie,
@@ -1333,9 +1387,9 @@
 									episode: params.element.translate_episode_end,
 									voice: params.element.translate_voice
 								}, function () {
-									Lampa.Noty.show(Lampa.Lang.translate('lampac_voice_success'));
+									Lampa.Noty.show(Lampa.Lang.translate('qwatch_voice_success'));
 								}, function () {
-									Lampa.Noty.show(Lampa.Lang.translate('lampac_voice_error'));
+									Lampa.Noty.show(Lampa.Lang.translate('qwatch_voice_error'));
 								});
 							}
 						}
@@ -1343,67 +1397,67 @@
 				}
 				params.onFile(show);
 			}).on('hover:focus', function () {
-				if (Lampa.Helper) Lampa.Helper.show('online_file', Lampa.Lang.translate('helper_online_file'), params.html);
+				if (Lampa.Helper)
+					Lampa.Helper.show('online_file', Lampa.Lang.translate('helper_torrents'), params.html);
 			});
 		};
-		/**
-		 * Показать пустой результат
-		 */
-		this.empty = function () {
-			var html = Lampa.Template.get('lampac_does_not_answer', {});
-			html.find('.online-empty__buttons').remove();
-			html.find('.online-empty__title').text(Lampa.Lang.translate('empty_title_two'));
-			html.find('.online-empty__time').text(Lampa.Lang.translate('empty_text'));
+		this.showEmptyPage = function () {
+			var html = Lampa.Template.get('qwatch_page_no_answer', {});
+			html.find('.qwatch-empty__buttons').remove();
+			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('empty_title_two'));
+			html.find('.qwatch-empty__time').text(Lampa.Lang.translate('empty_text'));
 			scroll.clear();
 			scroll.append(html);
-			this.loading(false);
+			this.setLoading(false);
 		};
-		this.noConnectToServer = function (er) {
-			var html = Lampa.Template.get('lampac_does_not_answer', {});
-			html.find('.online-empty__buttons').remove();
-			html.find('.online-empty__title').text(Lampa.Lang.translate('title_error'));
-			html.find('.online-empty__time').text(er && er.accsdb ? er.msg : Lampa.Lang.translate('lampac_does_not_answer_text').replace('{balanser}', balanser[balanser].name));
+		this.showNoConnectPage = function (er) {
+			var html = Lampa.Template.get('qwatch_page_no_answer', {});
+			html.find('.qwatch-empty__buttons').remove();
+			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('title_error'));
+			html.find('.qwatch-empty__time').text(er && er.accsdb ? er.msg : Lampa.Lang.translate('qwatch_balancer_no_results').replace('{balancer}', balancer[balancer].name));
 			scroll.clear();
 			scroll.append(html);
-			this.loading(false);
+			this.setLoading(false);
 		};
-		this.doesNotAnswer = function (er) {
+		this.showNoAnswerPage = function (error) {
 			var _this9 = this;
 			this.reset();
-			var html = Lampa.Template.get('lampac_does_not_answer', {
-				balanser: balanser
+			var html = Lampa.Template.get('qwatch_page_no_answer', {
+				balancer: balancer
 			});
-			if (er && er.accsdb) html.find('.online-empty__title').html(er.msg);
+			if (error && error.accsdb) html.find('.qwatch-empty__title').html(error.msg);
 
-			var tic = er && er.accsdb ? 10 : 5;
+			var tic = error && error.accsdb ? 10 : 5;
 			html.find('.cancel').on('hover:enter', function () {
-				clearInterval(balanser_timer);
+				clearInterval(balancer_timer);
 			});
 			html.find('.change').on('hover:enter', function () {
-				clearInterval(balanser_timer);
+				clearInterval(balancer_timer);
 				filter.render().find('.filter--sort').trigger('hover:enter');
 			});
 			scroll.clear();
 			scroll.append(html);
-			this.loading(false);
-			balanser_timer = setInterval(function () {
+			this.setLoading(false);
+			balancer_timer = setInterval(function () {
 				tic--;
 				html.find('.timeout').text(tic);
 				if (tic == 0) {
-					clearInterval(balanser_timer);
+					clearInterval(balancer_timer);
 					var keys = Lampa.Arrays.getKeys(sources);
-					var indx = keys.indexOf(balanser);
-					var next = keys[indx + 1];
-					if (!next) next = keys[0];
-					balanser = next;
-					if (Lampa.Activity.active().activity == _this9.activity) _this9.changeBalanser(balanser);
+					var next = keys[keys.indexOf(balancer) + 1];
+					if (!next)
+						next = keys[0];
+					balancer = next;
+					if (Lampa.Activity.active().activity == _this9.activity)
+						_this9.changeBalancer(balancer);
 				}
 			}, 1000);
 		};
 		this.getLastEpisode = function (items) {
 			var last_episode = 0;
 			items.forEach(function (e) {
-				if (typeof e.episode !== 'undefined') last_episode = Math.max(last_episode, parseInt(e.episode));
+				if (typeof e.episode !== 'undefined')
+					last_episode = Math.max(last_episode, parseInt(e.episode));
 			});
 			return last_episode;
 		};
@@ -1411,11 +1465,14 @@
 		 * Начать навигацию по файлам
 		 */
 		this.start = function () {
-			if (Lampa.Activity.active().activity !== this.activity) return;
+			if (Lampa.Activity.active().activity !== this.activity)
+				return;
+
 			if (!initialized) {
 				initialized = true;
 				this.initialize();
 			}
+
 			Lampa.Background.immediately(Lampa.Utils.cardImgBackgroundBlur(object.movie));
 			Lampa.Controller.add('content', {
 				toggle: function toggle() {
@@ -1423,7 +1480,7 @@
 					Lampa.Controller.collectionFocus(last || false, scroll.render());
 				},
 				gone: function gone() {
-					clearTimeout(balanser_timer);
+					clearTimeout(balancer_timer);
 				},
 				up: function up() {
 					if (Navigator.canmove('up')) {
@@ -1458,7 +1515,7 @@
 			this.clearImages();
 			files.destroy();
 			scroll.destroy();
-			clearInterval(balanser_timer);
+			clearInterval(balancer_timer);
 			clearTimeout(life_wait_timer);
 			if (hubConnection) {
 				clearTimeout(hub_timer);
@@ -1490,10 +1547,10 @@
 									var cards = line.data.map(function (item) {
 										item.title = Lampa.Utils.capitalizeFirstLetter(item.title);
 										item.release_date = item.year || '0000';
-										item.balanser = spiderUri;
+										item.balancer = spiderUri;
 										if (item.img !== undefined) {
 											if (item.img.charAt(0) === '/')
-												item.img = Defined.localhost + item.img.substring(1);
+												item.img = hostAddress + item.img.substring(1);
 											if (item.img.indexOf('/proxyimg') !== -1)
 												item.img = account(item.img);
 										}
@@ -1523,10 +1580,10 @@
 					}
 				}
 
-				network.silent(account(Defined.localhost + 'lite/' + spiderUri + '?title=' + params.query), function (json) {
+				network.silent(account(hostAddress + 'lite/' + spiderUri + '?title=' + params.query), function (json) {
 					if (json.rch) {
 						rchRun(json, function () {
-							network.silent(account(Defined.localhost + 'lite/' + spiderUri + '?title=' + params.query), function (links) {
+							network.silent(account(hostAddress + 'lite/' + spiderUri + '?title=' + params.query), function (links) {
 								searchComplite(links);
 							}, function () {
 								oncomplite([]);
@@ -1557,13 +1614,13 @@
 
 				Lampa.Activity.push({
 					url: params.element.url,
-					title: 'Lampac - ' + params.element.title,
+					title: 'QWatch - ' + params.element.title,
 					component: 'qwatch',
 					movie: params.element,
 					page: 1,
 					search: params.element.title,
 					clarification: true,
-					balanser: params.element.balanser,
+					balancer: params.element.balancer,
 					noinfo: true
 				});
 			}
@@ -1571,105 +1628,6 @@
 
 		Lampa.Search.addSource(source)
 	}
-
-	Lampa.Lang.add({
-		lampac_watch: {
-			ru: 'Смотреть онлайн',
-			en: 'Watch online',
-			uk: 'Дивитися онлайн',
-			zh: '在线观看'
-		},
-		lampac_video: {
-			ru: 'Видео',
-			en: 'Video',
-			uk: 'Відео',
-			zh: '视频'
-		},
-		lampac_no_watch_history: {
-			ru: 'Нет истории просмотра',
-			en: 'No browsing history',
-			ua: 'Немає історії перегляду',
-			zh: '没有浏览历史'
-		},
-		lampac_nolink: {
-			ru: 'Не удалось извлечь ссылку',
-			uk: 'Неможливо отримати посилання',
-			en: 'Failed to fetch link',
-			zh: '获取链接失败'
-		},
-		lampac_balanser: {
-			ru: 'Источник',
-			uk: 'Джерело',
-			en: 'Source',
-			zh: '来源'
-		},
-		helper_online_file: {
-			ru: 'Удерживайте клавишу "ОК" для вызова контекстного меню',
-			uk: 'Утримуйте клавішу "ОК" для виклику контекстного меню',
-			en: 'Hold the "OK" key to bring up the context menu',
-			zh: '按住“确定”键调出上下文菜单'
-		},
-		title_online: {
-			ru: 'Онлайн',
-			uk: 'Онлайн',
-			en: 'Online',
-			zh: '在线的'
-		},
-		lampac_voice_subscribe: {
-			ru: 'Подписаться на перевод',
-			uk: 'Підписатися на переклад',
-			en: 'Subscribe to translation',
-			zh: '订阅翻译'
-		},
-		lampac_voice_success: {
-			ru: 'Вы успешно подписались',
-			uk: 'Ви успішно підписалися',
-			en: 'You have successfully subscribed',
-			zh: '您已成功订阅'
-		},
-		lampac_voice_error: {
-			ru: 'Возникла ошибка',
-			uk: 'Виникла помилка',
-			en: 'An error has occurred',
-			zh: '发生了错误'
-		},
-		lampac_clear_all_marks: {
-			ru: 'Очистить все метки',
-			uk: 'Очистити всі мітки',
-			en: 'Clear all labels',
-			zh: '清除所有标签'
-		},
-		lampac_clear_all_timecodes: {
-			ru: 'Очистить все тайм-коды',
-			uk: 'Очистити всі тайм-коди',
-			en: 'Clear all timecodes',
-			zh: '清除所有时间代码'
-		},
-		lampac_change_balanser: {
-			ru: 'Изменить балансер',
-			uk: 'Змінити балансер',
-			en: 'Change balancer',
-			zh: '更改平衡器'
-		},
-		lampac_balanser_dont_work: {
-			ru: 'Поиск на ({balanser}) не дал результатов',
-			uk: 'Пошук на ({balanser}) не дав результатів',
-			en: 'Search on ({balanser}) did not return any results',
-			zh: '搜索 ({balanser}) 未返回任何结果'
-		},
-		lampac_balanser_timeout: {
-			ru: 'Источник будет переключен автоматически через <span class="timeout">10</span> секунд.',
-			uk: 'Джерело буде автоматично переключено через <span class="timeout">10</span> секунд.',
-			en: 'The source will be switched automatically after <span class="timeout">10</span> seconds.',
-			zh: '平衡器将在<span class="timeout">10</span>秒内自动切换。'
-		},
-		lampac_does_not_answer_text: {
-			ru: 'Поиск на ({balanser}) не дал результатов',
-			uk: 'Пошук на ({balanser}) не дав результатів',
-			en: 'Search on ({balanser}) did not return any results',
-			zh: '搜索 ({balanser}) 未返回任何结果'
-		}
-	});
 
 	function startPlugin() {
 		window.plugin_qwatch_ready = true;
@@ -1683,27 +1641,243 @@
 		};
 		Lampa.Manifest.plugins = manifest;
 
-		Lampa.Template.add('lampac_css', "\n        <style>\n        @charset 'UTF-8';.online-prestige{position:relative;-webkit-border-radius:.3em;border-radius:.3em;background-color:rgba(0,0,0,0.3);display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}.online-prestige__body{padding:1.2em;line-height:1.3;-webkit-box-flex:1;-webkit-flex-grow:1;-moz-box-flex:1;-ms-flex-positive:1;flex-grow:1;position:relative}@media screen and (max-width:480px){.online-prestige__body{padding:.8em 1.2em}}.online-prestige__img{position:relative;width:13em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0;min-height:8.2em}.online-prestige__img>img{position:absolute;top:0;left:0;width:100%;height:100%;-o-object-fit:cover;object-fit:cover;-webkit-border-radius:.3em;border-radius:.3em;opacity:0;-webkit-transition:opacity .3s;-o-transition:opacity .3s;-moz-transition:opacity .3s;transition:opacity .3s}.online-prestige__img--loaded>img{opacity:1}@media screen and (max-width:480px){.online-prestige__img{width:7em;min-height:6em}}.online-prestige__folder{padding:1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}.online-prestige__folder>svg{width:4.4em !important;height:4.4em !important}.online-prestige__viewed{position:absolute;top:1em;left:1em;background:rgba(0,0,0,0.45);-webkit-border-radius:100%;border-radius:100%;padding:.25em;font-size:.76em}.online-prestige__viewed>svg{width:1.5em !important;height:1.5em !important}.online-prestige__episode-number{position:absolute;top:0;left:0;right:0;bottom:0;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-box-pack:center;-webkit-justify-content:center;-moz-box-pack:center;-ms-flex-pack:center;justify-content:center;font-size:2em}.online-prestige__loader{position:absolute;top:50%;left:50%;width:2em;height:2em;margin-left:-1em;margin-top:-1em;background:url(./img/loader.svg) no-repeat center center;-webkit-background-size:contain;-o-background-size:contain;background-size:contain}.online-prestige__head,.online-prestige__footer{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-pack:justify;-webkit-justify-content:space-between;-moz-box-pack:justify;-ms-flex-pack:justify;justify-content:space-between;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}.online-prestige__timeline{margin:.8em 0}.online-prestige__timeline>.time-line{display:block !important}.online-prestige__title{font-size:1.7em;overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}@media screen and (max-width:480px){.online-prestige__title{font-size:1.4em}}.online-prestige__time{padding-left:2em}.online-prestige__info{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}.online-prestige__info>*{overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}.online-prestige__quality{padding-left:1em;white-space:nowrap}.online-prestige__scan-file{position:absolute;bottom:0;left:0;right:0}.online-prestige__scan-file .broadcast__scan{margin:0}.online-prestige .online-prestige-split{font-size:.8em;margin:0 1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}.online-prestige.focus::after{content:'';position:absolute;top:-0.6em;left:-0.6em;right:-0.6em;bottom:-0.6em;-webkit-border-radius:.7em;border-radius:.7em;border:solid .3em #fff;z-index:-1;pointer-events:none}.online-prestige+.online-prestige{margin-top:1.5em}.online-prestige--folder .online-prestige__footer{margin-top:.8em}.online-prestige-watched{padding:1em}.online-prestige-watched__icon>svg{width:1.5em;height:1.5em}.online-prestige-watched__body{padding-left:1em;padding-top:.1em;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap}.online-prestige-watched__body>span+span::before{content:' ● ';vertical-align:top;display:inline-block;margin:0 .5em}.online-prestige-rate{display:-webkit-inline-box;display:-webkit-inline-flex;display:-moz-inline-box;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}.online-prestige-rate>svg{width:1.3em !important;height:1.3em !important}.online-prestige-rate>span{font-weight:600;font-size:1.1em;padding-left:.7em}.online-empty{line-height:1.4}.online-empty__title{font-size:1.8em;margin-bottom:.3em}.online-empty__time{font-size:1.2em;font-weight:300;margin-bottom:1.6em}.online-empty__buttons{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}.online-empty__buttons>*+*{margin-left:1em}.online-empty__button{background:rgba(0,0,0,0.3);font-size:1.2em;padding:.5em 1.2em;-webkit-border-radius:.2em;border-radius:.2em;margin-bottom:2.4em}.online-empty__button.focus{background:#fff;color:black}.online-empty__templates .online-empty-template:nth-child(2){opacity:.5}.online-empty__templates .online-empty-template:nth-child(3){opacity:.2}.online-empty-template{background-color:rgba(255,255,255,0.3);padding:1em;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-border-radius:.3em;border-radius:.3em}.online-empty-template>*{background:rgba(0,0,0,0.3);-webkit-border-radius:.3em;border-radius:.3em}.online-empty-template__ico{width:4em;height:4em;margin-right:2.4em}.online-empty-template__body{height:1.7em;width:70%}.online-empty-template+.online-empty-template{margin-top:1em}\n        </style>\n    ");
-		$('body').append(Lampa.Template.get('lampac_css', {}, true));
+		Lampa.Lang.add({
+			qwatch_title: {
+				ru: 'Онлайн',
+				uk: 'Онлайн',
+				en: 'Online',
+				zh: '在线的'
+			},
+			qwatch_video: {
+				ru: 'Видео',
+				en: 'Video',
+				uk: 'Відео',
+				zh: '视频'
+			},
+			qwatch_no_watch_history: {
+				ru: 'Нет истории просмотра',
+				en: 'No browsing history',
+				ua: 'Немає історії перегляду',
+				zh: '没有浏览历史'
+			},
+			qwatch_no_link: {
+				ru: 'Не удалось извлечь ссылку',
+				uk: 'Неможливо отримати посилання',
+				en: 'Failed to fetch link',
+				zh: '获取链接失败'
+			},
+			qwatch_balancer: {
+				ru: 'Источник',
+				uk: 'Джерело',
+				en: 'Source',
+				zh: '来源'
+			},
+			qwatch_voice_subscribe: {
+				ru: 'Подписаться на перевод',
+				uk: 'Підписатися на переклад',
+				en: 'Subscribe to translation',
+				zh: '订阅翻译'
+			},
+			qwatch_voice_success: {
+				ru: 'Вы успешно подписались',
+				uk: 'Ви успішно підписалися',
+				en: 'You have successfully subscribed',
+				zh: '您已成功订阅'
+			},
+			qwatch_voice_error: {
+				ru: 'Возникла ошибка',
+				uk: 'Виникла помилка',
+				en: 'An error has occurred',
+				zh: '发生了错误'
+			},
+			qwatch_clear_all_marks: {
+				ru: 'Очистить все метки',
+				uk: 'Очистити всі мітки',
+				en: 'Clear all labels',
+				zh: '清除所有标签'
+			},
+			qwatch_clear_all_timecodes: {
+				ru: 'Очистить все тайм-коды',
+				uk: 'Очистити всі тайм-коди',
+				en: 'Clear all timecodes',
+				zh: '清除所有时间代码'
+			},
+			qwatch_balancer_change: {
+				ru: 'Изменить балансер',
+				uk: 'Змінити балансер',
+				en: 'Change balancer',
+				zh: '更改平衡器'
+			},
+			qwatch_balancer_timeout: {
+				ru: 'Источник будет переключен автоматически через <span class="timeout">10</span> секунд.',
+				uk: 'Джерело буде автоматично переключено через <span class="timeout">10</span> секунд.',
+				en: 'The source will be switched automatically after <span class="timeout">10</span> seconds.',
+				zh: '平衡器将在<span class="timeout">10</span>秒内自动切换。'
+			},
+			qwatch_balancer_no_results: {
+				ru: 'Поиск на "{balancer}" не дал результатов',
+				uk: 'Пошук на "{balancer}" не дав результатів',
+				en: 'Search on "{balancer}" did not return any results',
+				zh: '搜索 "{balancer}" 未返回任何结果'
+			}
+		});
+
+		Lampa.Template.add('qwatch_css',
+			'<style>' +
+			'@charset \'UTF-8\';' +
+			'.qwatch-container{position:relative;-webkit-border-radius:.3em;border-radius:.3em;background-color:rgba(0,0,0,0.3);display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}' +
+			'.qwatch__body{padding:1.2em;line-height:1.3;-webkit-box-flex:1;-webkit-flex-grow:1;-moz-box-flex:1;-ms-flex-positive:1;flex-grow:1;position:relative}' +
+			'@media screen and (max-width:480px){.qwatch__body{padding:.8em 1.2em}}' +
+			'.qwatch__img{position:relative;width:13em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0;min-height:8.2em}' +
+			'.qwatch__img>img{position:absolute;top:0;left:0;width:100%;height:100%;-o-object-fit:cover;object-fit:cover;-webkit-border-radius:.3em;border-radius:.3em;opacity:0;-webkit-transition:opacity .3s;-o-transition:opacity .3s;-moz-transition:opacity .3s;transition:opacity .3s}' +
+			'.qwatch__img--loaded>img{opacity:1}@media screen and (max-width:480px){.qwatch__img{width:7em;min-height:6em}}' +
+			'.qwatch__folder{padding:1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
+			'.qwatch__folder>svg{width:4.4em !important;height:4.4em !important}' +
+			'.qwatch__viewed{position:absolute;top:1em;left:1em;background:rgba(0,0,0,0.45);-webkit-border-radius:100%;border-radius:100%;padding:.25em;font-size:.76em}' +
+			'.qwatch__viewed>svg{width:1.5em !important;height:1.5em !important}' +
+			'.qwatch__episode-number{position:absolute;top:0;left:0;right:0;bottom:0;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-box-pack:center;-webkit-justify-content:center;-moz-box-pack:center;-ms-flex-pack:center;justify-content:center;font-size:2em}' +
+			'.qwatch__loader{position:absolute;top:50%;left:50%;width:2em;height:2em;margin-left:-1em;margin-top:-1em;background:url(./img/loader.svg) no-repeat center center;-webkit-background-size:contain;-o-background-size:contain;background-size:contain}' +
+			'.qwatch__head,.qwatch__footer{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-pack:justify;-webkit-justify-content:space-between;-moz-box-pack:justify;-ms-flex-pack:justify;justify-content:space-between;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
+			'.qwatch__timeline{margin:.8em 0}' +
+			'.qwatch__timeline>.time-line{display:block !important}' +
+			'.qwatch__title{font-size:1.7em;overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
+			'@media screen and (max-width:480px){.qwatch__title{font-size:1.4em}}' +
+			'.qwatch__time{padding-left:2em}' +
+			'.qwatch__info{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
+			'.qwatch__info>*{overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
+			'.qwatch__quality{padding-left:1em;white-space:nowrap}' +
+			'.qwatch__scan-file{position:absolute;bottom:0;left:0;right:0}' +
+			'.qwatch__scan-file .broadcast__scan{margin:0}' +
+			'.qwatch-container .qwatch-split{font-size:.8em;margin:0 1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
+			'.qwatch-container.focus::after{content:\'\';position:absolute;top:-0.6em;left:-0.6em;right:-0.6em;bottom:-0.6em;-webkit-border-radius:.7em;border-radius:.7em;border:solid .3em #fff;z-index:-1;pointer-events:none}' +
+			'.qwatch-container+.qwatch-container{margin-top:1.5em}' +
+			'.qwatch--folder .qwatch__footer{margin-top:.8em}' +
+			'.qwatch-watched{padding:1em}' +
+			'.qwatch-watched__icon>svg{width:1.5em;height:1.5em}' +
+			'.qwatch-watched__body{padding-left:1em;padding-top:.1em;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap}' +
+			'.qwatch-watched__body>span+span::before{content:\' ● \';vertical-align:top;display:inline-block;margin:0 .5em}' +
+			'.qwatch-rate{display:-webkit-inline-box;display:-webkit-inline-flex;display:-moz-inline-box;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
+			'.qwatch-rate>svg{width:1.3em !important;height:1.3em !important}' +
+			'.qwatch-rate>span{font-weight:600;font-size:1.1em;padding-left:.7em}' +
+			'.qwatch-empty{line-height:1.4}' +
+			'.qwatch-empty__title{font-size:1.8em;margin-bottom:.3em}' +
+			'.qwatch-empty__time{font-size:1.2em;font-weight:300;margin-bottom:1.6em}' +
+			'.qwatch-empty__buttons{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}' +
+			'.qwatch-empty__buttons>*+*{margin-left:1em}' +
+			'.qwatch-empty__button{background:rgba(0,0,0,0.3);font-size:1.2em;padding:.5em 1.2em;-webkit-border-radius:.2em;border-radius:.2em;margin-bottom:2.4em}' +
+			'.qwatch-empty__button.focus{background:#fff;color:black}' +
+			'.qwatch-empty__templates .qwatch-empty-template:nth-child(2){opacity:.5}' +
+			'.qwatch-empty__templates .qwatch-empty-template:nth-child(3){opacity:.2}' +
+			'.qwatch-empty-template{background-color:rgba(255,255,255,0.3);padding:1em;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-border-radius:.3em;border-radius:.3em}' +
+			'.qwatch-empty-template>*{background:rgba(0,0,0,0.3);-webkit-border-radius:.3em;border-radius:.3em}' +
+			'.qwatch-empty-template__ico{width:4em;height:4em;margin-right:2.4em}' +
+			'.qwatch-empty-template__body{height:1.7em;width:70%}' +
+			'.qwatch-empty-template+.qwatch-empty-template{margin-top:1em}' +
+			'</style>');
+		$('body').append(Lampa.Template.get('qwatch_css', {}, true));
 
 		function resetTemplates() {
-			Lampa.Template.add('lampac_prestige_full', "<div class=\"online-prestige online-prestige--full selector\">\n            <div class=\"online-prestige__img\">\n                <img alt=\"\">\n                <div class=\"online-prestige__loader\"></div>\n            </div>\n            <div class=\"online-prestige__body\">\n                <div class=\"online-prestige__head\">\n                    <div class=\"online-prestige__title\">{title}</div>\n                    <div class=\"online-prestige__time\">{time}</div>\n                </div>\n\n                <div class=\"online-prestige__timeline\"></div>\n\n                <div class=\"online-prestige__footer\">\n                    <div class=\"online-prestige__info\">{info}</div>\n                    <div class=\"online-prestige__quality\">{quality}</div>\n                </div>\n            </div>\n        </div>");
-			Lampa.Template.add('lampac_content_loading', "<div class=\"online-empty\">\n            <div class=\"broadcast__scan\"><div></div></div>\n\t\t\t\n            <div class=\"online-empty__templates\">\n                <div class=\"online-empty-template selector\">\n                    <div class=\"online-empty-template__ico\"></div>\n                    <div class=\"online-empty-template__body\"></div>\n                </div>\n                <div class=\"online-empty-template\">\n                    <div class=\"online-empty-template__ico\"></div>\n                    <div class=\"online-empty-template__body\"></div>\n                </div>\n                <div class=\"online-empty-template\">\n                    <div class=\"online-empty-template__ico\"></div>\n                    <div class=\"online-empty-template__body\"></div>\n                </div>\n            </div>\n        </div>");
-			Lampa.Template.add('lampac_does_not_answer', "<div class=\"online-empty\">\n            <div class=\"online-empty__title\">\n                #{lampac_balanser_dont_work}\n            </div>\n            <div class=\"online-empty__time\">\n                #{lampac_balanser_timeout}\n            </div>\n            <div class=\"online-empty__buttons\">\n                <div class=\"online-empty__button selector cancel\">#{cancel}</div>\n                <div class=\"online-empty__button selector change\">#{lampac_change_balanser}</div>\n            </div>\n            <div class=\"online-empty__templates\">\n                <div class=\"online-empty-template\">\n                    <div class=\"online-empty-template__ico\"></div>\n                    <div class=\"online-empty-template__body\"></div>\n                </div>\n                <div class=\"online-empty-template\">\n                    <div class=\"online-empty-template__ico\"></div>\n                    <div class=\"online-empty-template__body\"></div>\n                </div>\n                <div class=\"online-empty-template\">\n                    <div class=\"online-empty-template__ico\"></div>\n                    <div class=\"online-empty-template__body\"></div>\n                </div>\n            </div>\n        </div>");
-			Lampa.Template.add('lampac_prestige_rate', "<div class=\"online-prestige-rate\">\n            <svg width=\"17\" height=\"16\" viewBox=\"0 0 17 16\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                <path d=\"M8.39409 0.192139L10.99 5.30994L16.7882 6.20387L12.5475 10.4277L13.5819 15.9311L8.39409 13.2425L3.20626 15.9311L4.24065 10.4277L0 6.20387L5.79819 5.30994L8.39409 0.192139Z\" fill=\"#fff\"></path>\n            </svg>\n            <span>{rate}</span>\n        </div>");
-			Lampa.Template.add('lampac_prestige_folder', "<div class=\"online-prestige online-prestige--folder selector\">\n            <div class=\"online-prestige__folder\">\n                <svg viewBox=\"0 0 128 112\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                    <rect y=\"20\" width=\"128\" height=\"92\" rx=\"13\" fill=\"white\"></rect>\n                    <path d=\"M29.9963 8H98.0037C96.0446 3.3021 91.4079 0 86 0H42C36.5921 0 31.9555 3.3021 29.9963 8Z\" fill=\"white\" fill-opacity=\"0.23\"></path>\n                    <rect x=\"11\" y=\"8\" width=\"106\" height=\"76\" rx=\"13\" fill=\"white\" fill-opacity=\"0.51\"></rect>\n                </svg>\n            </div>\n            <div class=\"online-prestige__body\">\n                <div class=\"online-prestige__head\">\n                    <div class=\"online-prestige__title\">{title}</div>\n                    <div class=\"online-prestige__time\">{time}</div>\n                </div>\n\n                <div class=\"online-prestige__footer\">\n                    <div class=\"online-prestige__info\">{info}</div>\n                </div>\n            </div>\n        </div>");
-			Lampa.Template.add('lampac_prestige_watched', "<div class=\"online-prestige online-prestige-watched selector\">\n            <div class=\"online-prestige-watched__icon\">\n                <svg width=\"21\" height=\"21\" viewBox=\"0 0 21 21\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n                    <circle cx=\"10.5\" cy=\"10.5\" r=\"9\" stroke=\"currentColor\" stroke-width=\"3\"/>\n                    <path d=\"M14.8477 10.5628L8.20312 14.399L8.20313 6.72656L14.8477 10.5628Z\" fill=\"currentColor\"/>\n                </svg>\n            </div>\n            <div class=\"online-prestige-watched__body\">\n                \n            </div>\n        </div>");
+			Lampa.Template.add('qwatch_page_full', 
+				'<div class="qwatch-container qwatch--full selector">' +
+					'<div class="qwatch__img">' +
+						'<img alt="">' +
+						'<div class="qwatch__loader"/>' +
+					'</div>' +
+					'<div class="qwatch__body">' +
+						'<div class="qwatch__head">' +
+							'<div class="qwatch__title">{title}</div>' +
+							'<div class="qwatch__time">{time}</div>' +
+						'</div>' +
+						'<div class="qwatch__timeline"/>' +
+						'<div class="qwatch__footer">' +
+							'<div class=\"qwatch__info\">{info}</div>' +
+							'<div class=\"qwatch__quality\">{quality}</div>' +
+						'</div>' +
+					'</div>' +
+				'</div>');
+			Lampa.Template.add('qwatch_page_content_loader',
+				'<div class="qwatch-empty">' +
+					'<div class="broadcast__scan"><div/></div>' +
+					'<div class="qwatch-empty__templates">' +
+						'<div class="qwatch-empty-template selector">' +
+							'<div class="qwatch-empty-template__ico"/>' +
+							'<div class="qwatch-empty-template__body"/>' +
+						'</div>' +
+						'<div class="qwatch-empty-template">' +
+							'<div class="qwatch-empty-template__ico"/>' +
+							'<div class="qwatch-empty-template__body"/>' +
+						'</div>' +
+						'<div class="qwatch-empty-template">' +
+							'<div class="qwatch-empty-template__ico"/>' +
+							'<div class="qwatch-empty-template__body"/>' +
+						'</div>' +
+					'</div>' +
+				'</div>');
+			Lampa.Template.add('qwatch_page_no_answer',
+				'<div class="qwatch-empty">' +
+					'<div class="qwatch-empty__title">#{qwatch_balancer_no_results}</div>' +
+					'<div class="qwatch-empty__time">#{qwatch_balancer_timeout}</div>' +
+					'<div class="qwatch-empty__buttons">' +
+						'<div class="qwatch-empty__button selector cancel">#{cancel}</div>' +
+						'<div class="qwatch-empty__button selector change">#{qwatch_balancer_change}</div>' +
+					'</div>' +
+					'<div class="qwatch-empty__templates">' +
+						'<div class="qwatch-empty-template">' +
+							'<div class="qwatch-empty-template__ico"/>'+
+							'<div class="qwatch-empty-template__body"/>' +
+						'</div>' +
+						'<div class="qwatch-empty-template">' +
+							'<div class="qwatch-empty-template__ico"/>' +
+							'<div class="qwatch-empty-template__body"/>' +
+						'</div>' +
+						'<div class="qwatch-empty-template">' +
+							'<div class="qwatch-empty-template__ico"/>' +
+							'<div class="qwatch-empty-template__body"/>' +
+						'</div>' +
+					'</div>' +
+				'</div>');
+			Lampa.Template.add('qwatch_entry_rating', 
+				'<div class="qwatch-rate">' +
+					'<svg width="17" height="16" viewBox="0 0 17 16" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+						'<path d="M8.39409 0.192139L10.99 5.30994L16.7882 6.20387L12.5475 10.4277L13.5819 15.9311L8.39409 13.2425L3.20626 15.9311L4.24065 10.4277L0 6.20387L5.79819 5.30994L8.39409 0.192139Z" fill="#fff"/>' +
+					'</svg>' +
+					'<span>{rate}</span>' +
+				'</div>');
+			Lampa.Template.add('qwatch_page_folder', 
+				'<div class="qwatch-container qwatch--folder selector">' +
+					'<div class="qwatch__folder">' +
+						'<svg viewBox="0 0 128 112" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+							'<rect y="20" width="128" height="92" rx="13" fill="white"/><path d="M29.9963 8H98.0037C96.0446 3.3021 91.4079 0 86 0H42C36.5921 0 31.9555 3.3021 29.9963 8Z" fill="white" fill-opacity="0.23"/><rect x="11" y="8" width="106" height="76" rx="13" fill="white" fill-opacity="0.51"/>' +
+						'</svg>' +
+					'</div>' +
+					'<div class="qwatch__body">' +
+						'<div class="qwatch__head">' +
+							'<div class="qwatch__title">{title}</div>' +
+							'<div class="qwatch__time">{time}</div>' +
+						'</div>' +
+						'<div class="qwatch__footer">' +
+							'<div class="qwatch__info">{info}</div>' +
+						'</div>' +
+					'</div>' +
+				'</div>');
+			Lampa.Template.add('qwatch_page_watched', 
+				'<div class="qwatch-container qwatch-watched selector">' +
+					'<div class="qwatch-watched__icon">' +
+						'<svg width="21" height="21" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+							'<circle cx="10.5" cy="10.5" r="9" stroke="currentColor" stroke-width="3"/>' +
+							'<path d="M14.8477 10.5628L8.20312 14.399L8.20313 6.72656L14.8477 10.5628Z" fill="currentColor"/>' +
+						'</svg>' +
+					'</div>' +
+					'<div class="qwatch-watched__body"/>' +
+				'</div>');
 		}
-		//var button = "<div class=\"full-start__button selector view--qwatch lampac--button\" data-subtitle=\"".concat(manifest.name, " ").concat(manifest.version, "\">\n        <svg xmlns=\"http://www.w3.org/2000/svg\" version=\"1.1\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" viewBox=\"0 0 392.697 392.697\" xml:space=\"preserve\">\n            <path d=\"M21.837,83.419l36.496,16.678L227.72,19.886c1.229-0.592,2.002-1.846,1.98-3.209c-0.021-1.365-0.834-2.592-2.082-3.145\n                L197.766,0.3c-0.903-0.4-1.933-0.4-2.837,0L21.873,77.036c-1.259,0.559-2.073,1.803-2.081,3.18\n                C19.784,81.593,20.584,82.847,21.837,83.419z\" fill=\"currentColor\"></path>\n            <path d=\"M185.689,177.261l-64.988-30.01v91.617c0,0.856-0.44,1.655-1.167,2.114c-0.406,0.257-0.869,0.386-1.333,0.386\n                c-0.368,0-0.736-0.082-1.079-0.244l-68.874-32.625c-0.869-0.416-1.421-1.293-1.421-2.256v-92.229L6.804,95.5\n                c-1.083-0.496-2.344-0.406-3.347,0.238c-1.002,0.645-1.608,1.754-1.608,2.944v208.744c0,1.371,0.799,2.615,2.045,3.185\n                l178.886,81.768c0.464,0.211,0.96,0.315,1.455,0.315c0.661,0,1.318-0.188,1.892-0.555c1.002-0.645,1.608-1.754,1.608-2.945\n                V180.445C187.735,179.076,186.936,177.831,185.689,177.261z\" fill=\"currentColor\"></path>\n            <path d=\"M389.24,95.74c-1.002-0.644-2.264-0.732-3.347-0.238l-178.876,81.76c-1.246,0.57-2.045,1.814-2.045,3.185v208.751\n                c0,1.191,0.606,2.302,1.608,2.945c0.572,0.367,1.23,0.555,1.892,0.555c0.495,0,0.991-0.104,1.455-0.315l178.876-81.768\n                c1.246-0.568,2.045-1.813,2.045-3.185V98.685C390.849,97.494,390.242,96.384,389.24,95.74z\" fill=\"currentColor\"></path>\n            <path d=\"M372.915,80.216c-0.009-1.377-0.823-2.621-2.082-3.18l-60.182-26.681c-0.938-0.418-2.013-0.399-2.938,0.045\n                l-173.755,82.992l60.933,29.117c0.462,0.211,0.958,0.316,1.455,0.316s0.993-0.105,1.455-0.316l173.066-79.092\n                C372.122,82.847,372.923,81.593,372.915,80.216z\" fill=\"currentColor\"></path>\n        </svg>\n\n        <span>#{title_online}</span>\n    </div>"); // нужна заглушка, а то при страте лампы говорит пусто
-		//Lampa.Component.add('qwatch', QWatchComponent); //то же самое
-		//resetTemplates();
 
 		var button =
 			'<div class="full-start__button selector view--qwatch" data-subtitle="' + manifest.name + ' ' + manifest.version + '">' +
-			'<svg xmlns="http://www.w3.org/2000/svg" width="800px" height="800px" viewBox="0 0 24 24">' +
-			'<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M11.0195 2.40431C11.6283 2.06184 12.3717 2.06184 12.9805 2.40431L19.9805 6.34181C20.6103 6.69605 21 7.36241 21 8.08496V15.8296C21 16.4661 20.6634 17.0551 20.1151 17.3783L12.8867 21.6382C12.3396 21.9607 11.6604 21.9607 11.1133 21.6382L3.88495 17.3783C3.33659 17.0551 3 16.4661 3 15.8296V8.08496C3 7.36241 3.38972 6.69605 4.01948 6.34181L11.0195 2.40431ZM5.1286 8.13479C5.39937 7.65344 6.00908 7.48272 6.49044 7.75348L12.0002 10.8527L17.5099 7.75348C17.9913 7.48272 18.601 7.65344 18.8718 8.13479C19.1425 8.61615 18.9718 9.22587 18.4904 9.49663L13.0002 12.5849V19C13.0002 19.5523 12.5525 20 12.0002 20C11.4479 20 11.0002 19.5523 11.0002 19V12.5849L5.50992 9.49663C5.02856 9.22587 4.85784 8.61615 5.1286 8.13479Z"/>' +
+			'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">' +
+			'<path fill="currentColor" fill-rule="evenodd" d="M3.07 6a8.025 8.025 0 014.262-3.544A12.802 12.802 0 005.595 6H3.07zm-.818 2A8.015 8.015 0 002 10c0 .69.088 1.36.252 2h2.89A13.886 13.886 0 015 10c0-.704.051-1.371.143-2H2.252zm4.916 0C7.06 8.62 7 9.286 7 10c0 .713.061 1.38.168 2h5.664c.107-.62.168-1.287.168-2 0-.714-.061-1.38-.168-2H7.168zm7.69 0c.09.629.142 1.296.142 2s-.051 1.371-.143 2h2.891c.165-.64.252-1.31.252-2s-.087-1.36-.252-2h-2.89zm2.072-2h-2.525a12.805 12.805 0 00-1.737-3.544A8.025 8.025 0 0116.93 6zm-4.638 0H7.708c.324-.865.725-1.596 1.124-2.195.422-.633.842-1.117 1.168-1.452.326.335.746.82 1.168 1.452.4.599.8 1.33 1.124 2.195zm-1.124 10.195c.4-.599.8-1.33 1.124-2.195H7.708c.324.865.725 1.596 1.124 2.195.422.633.842 1.117 1.168 1.452.326-.335.746-.82 1.168-1.452zM3.07 14h2.525a12.802 12.802 0 001.737 3.544A8.025 8.025 0 013.07 14zm9.762 3.305a12.9 12.9 0 01-.164.24A8.025 8.025 0 0016.93 14h-2.525a12.805 12.805 0 01-1.573 3.305zM20 10c0 5.52-4.472 9.994-9.99 10h-.022C4.47 19.994 0 15.519 0 10 0 4.477 4.477 0 10 0s10 4.477 10 10z"/>' +
 			'</svg>' +
-			'<span>#{title_online}</span>' +
+			'<span>#{qwatch_title}</span>' +
 			'</div>';
 
 		Lampa.Listener.follow('full', function (event) {
@@ -1720,14 +1894,18 @@
 
 				// register button action
 				onlineButton.on('hover:enter', function () {
+					// register templates
 					resetTemplates();
+
+					// register component
 					Lampa.Component.add('qwatch', QWatchComponent);
 
+					// register activity
 					var movieId = Lampa.Utils.hash(event.data.movie.number_of_seasons ? event.data.movie.original_name : event.data.movie.original_title);
 					var all = Lampa.Storage.get('clarification_search', '{}');
 					Lampa.Activity.push({
 						url: '',
-						title: Lampa.Lang.translate('title_online'),
+						title: Lampa.Lang.translate('qwatch_title'),
 						component: 'qwatch',
 						search: all[movieId] ? all[movieId] : event.data.movie.title,
 						movie: event.data.movie,
@@ -1739,8 +1917,8 @@
 		});
 
 		if (Lampa.Manifest.app_digital >= 177) {
-			var balansers_sync = ["filmix", 'filmixtv', "fxapi", "rezka", "rhsprem", "lumex", "videodb", "collaps", "collaps-dash", "hdvb", "zetflix", "kodik", "ashdi", "kinoukr", "kinotochka", "remux", "iframevideo", "cdnmovies", "anilibria", "animedia", "animego", "animevost", "animebesst", "redheadsound", "alloha", "animelib", "moonanime", "kinopub", "vibix", "vdbmovies", "fancdn", "cdnvideohub", "vokino", "rc/filmix", "rc/fxapi", "rc/rhs", "vcdn", "videocdn", "mirage", "hydraflix", "videasy", "vidsrc", "movpi", "vidlink", "twoembed", "autoembed", "smashystream", "autoembed", "rgshows", "pidtor", "videoseed"];
-			balansers_sync.forEach(function (name) {
+			var balancers_sync = ["filmix", 'filmixtv', "fxapi", "rezka", "rhsprem", "lumex", "videodb", "collaps", "collaps-dash", "hdvb", "zetflix", "kodik", "ashdi", "kinoukr", "kinotochka", "remux", "iframevideo", "cdnmovies", "anilibria", "animedia", "animego", "animevost", "animebesst", "redheadsound", "alloha", "animelib", "moonanime", "kinopub", "vibix", "vdbmovies", "fancdn", "cdnvideohub", "vokino", "rc/filmix", "rc/fxapi", "rc/rhs", "vcdn", "videocdn", "mirage", "hydraflix", "videasy", "vidsrc", "movpi", "vidlink", "twoembed", "autoembed", "smashystream", "autoembed", "rgshows", "pidtor", "videoseed"];
+			balancers_sync.forEach(function (name) {
 				Lampa.Storage.sync('online_choice_' + name, 'object_object');
 			});
 			Lampa.Storage.sync('online_watched_last', 'object_object');
@@ -1751,8 +1929,8 @@
 		if (event.name == 'activity') {
 			if (Lampa.Activity.active().component == 'qwatch') {
 				var add_ads = setInterval(function () {
-					if (document.querySelector('.online-prestige-watched') !== null) {
-						$('.online-prestige-watched').remove();
+					if (document.querySelector('.qwatch-watched') !== null) {
+						$('.qwatch-watched').remove();
 						clearInterval(add_ads);
 					}
 				}, 50);
