@@ -4,7 +4,7 @@
 	var hostAddress = 'http://smotret24.ru/';
 
 	if (!window.rch) {
-		Lampa.Utils.putScript(["http://smotret24.ru/invc-rch.js"], function () { }, false, function () {
+		Lampa.Utils.putScript(["https://qlampa.github.io/plugins/invc-rch.js"], function () { }, false, function () {
 			if (!window.rch.startTypeInvoke)
 				window.rch.typeInvoke('http://smotret24.ru', function () { });
 		}, true);
@@ -240,7 +240,6 @@
 				sources = {};
 				sources[object.balancer] = { name: object.balancer };
 				balancer = object.balancer;
-				console.log('bl', balancer);
 				filter_sources = [];
 
 				return network["native"](account(object.url.replace('rjson=', 'nojson=')), this.parse.bind(this), function () {
