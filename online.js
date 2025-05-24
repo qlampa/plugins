@@ -140,7 +140,7 @@
 		};
 
 		function getBalancerName(entryJson) {
-			return (entryJson.balanser || entryJson.name.split(' ')[0]).toLowerCase();
+			return (entryJson['balanser'] || entryJson['name'].split(' ')[0]).toLowerCase();
 		}
 
 		function clarificationSearchAdd(value) {
@@ -533,10 +533,10 @@
 			let self = this;
 
 			if (Lampa.Storage.field('player') !== 'inner' && file.stream && Lampa.Platform.is('apple')) {
-				var newfile = Lampa.Arrays.clone(file);
-				newfile.method = 'play';
-				newfile.url = file.stream;
-				call(newfile, {});
+				let streamFile = Lampa.Arrays.clone(file);
+				streamFile.method = 'play';
+				streamFile.url = file.stream;
+				call(streamFile, {});
 			}
 			else if (file.method == 'play')
 				call(file, {});
@@ -546,7 +546,7 @@
 					Lampa.Controller.toggle('content');
 					network.clear();
 				});
-				network["native"](account(file.url), (json) => {
+				network.native(account(file.url), (json) => {
 					if (json.rch) {
 						self.rch(json, () => {
 							Lampa.Loading.stop();
@@ -557,7 +557,7 @@
 						Lampa.Loading.stop();
 						call(json, json);
 					}
-				}, function () {
+				}, () => {
 					Lampa.Loading.stop();
 					call(false, {});
 				});
@@ -567,7 +567,7 @@
 			return {
 				title: file.title,
 				url: file.url,
-				quality: file.qualitys,
+				quality: file.qualities,
 				timeline: file.timeline,
 				subtitles: file.subtitles,
 				callback: file.mark
@@ -602,15 +602,18 @@
 							let first = self.toPlayElement(item);
 							first.url = json.url;
 							first.headers = json_call.headers || json.headers;
-							first.quality = json_call.quality || item.qualitys;
+							first.quality = json_call.quality || item.qualities;
 							first.hls_manifest_timeout = json_call.hls_manifest_timeout || json.hls_manifest_timeout;
 							first.subtitles = json.subtitles;
-							first.vast_url = json.vast_url;
-							first.vast_msg = json.vast_msg;
+							// prevent preroll ads
+							//first.vast_url = json.vast_url;
+							//first.vast_msg = json.vast_msg;
 							self.orUrlReserve(first);
 							self.setDefaultQuality(first);
 
 							if (item.season) {
+								// @todo: prepend episode index to title
+
 								videos.forEach((element) => {
 									let cell = self.toPlayElement(element);
 									if (element == item)
@@ -625,7 +628,7 @@
 												self.getFileUrl(element, (stream, stream_json) => {
 													if (stream.url) {
 														cell.url = stream.url;
-														cell.quality = stream_json.quality || element.qualitys;
+														cell.quality = stream_json.quality || element.qualities;
 														cell.subtitles = stream.subtitles;
 														self.orUrlReserve(cell);
 														self.setDefaultQuality(cell);
@@ -649,30 +652,15 @@
 									self.orUrlReserve(cell);
 									self.setDefaultQuality(cell);
 									playlist.push(cell);
-								}); //Lampa.Player.playlist(playlist)
+								});
+
+								if (playlist.length > 1)
+									first.playlist = playlist;
 							}
 							else
 								playlist.push(first);
 
-							if (playlist.length > 1)
-								first.playlist = playlist;
-
 							if (first.url) {
-								// @todo: check debugger and remove if useless so
-								let element = first;
-								element.isonline = true;
-								if (element.url && element.isonline) {
-									// online.js
-								}
-								else if (element.url) {
-									if (Platform.is('browser') && location.host.indexOf("127.0.0.1") !== -1) {
-										Noty.show('Видео открыто в playerInner', { time: 3000 });
-										$.get('http://rc.bwa.to/player-inner/' + element.url);
-										return;
-									}
-
-									Player.play(element);
-								}
 								Lampa.Player.play(first);
 								Lampa.Player.playlist(playlist);
 								item.mark();
@@ -689,7 +677,7 @@
 					self.getFileUrl(item, (stream) => {
 						call({
 							file: stream.url,
-							quality: item.qualitys
+							quality: item.qualities
 						});
 					}, true);
 				}
@@ -1070,7 +1058,7 @@
 					let episode_last = choice.episodes_view[element.season];
 					let voice_name = choice.voice_name || (filter_find.voice[0] ? filter_find.voice[0].title : false) || element.voice_name || (isSerial ? 'Неизвестно' : element.text) || 'Неизвестно';
 					if (element.quality) {
-						element.qualitys = element.quality;
+						element.qualities = element.quality;
 						element.quality = Lampa.Arrays.getKeys(element.quality)[0];
 					}
 
@@ -1985,5 +1973,6 @@
 		}
 	});*/
 
-	if (!window.plugin_qwatch_ready) startPlugin();
+	if (!window.plugin_qwatch_ready)
+		startPlugin();
 })();
