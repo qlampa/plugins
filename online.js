@@ -23,7 +23,7 @@
 		hubConnection = new signalR.HubConnectionBuilder().withUrl(json.ws).build();
 		hubConnection.start().then(() => {
 			window.rch.Registry(json.result, hubConnection, call);
-		})["catch"]((err) => {
+		}).catch((err) => {
 			Lampa.Noty.show(err.toString());
 		});
 
@@ -36,11 +36,10 @@
 	}
 
 	function rchRun(json, call) {
-		if (signalR === undefined) {
-			Lampa.Utils.putScript(["http://smotret24.ru/signalr-6.0.25_es5.js"], () => { }, false, () => {
+		if (signalR === undefined)
+			Lampa.Utils.putScript(["https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.25/signalr.js"], () => { }, false, () => {
 				rchInvoke(json, call);
 			}, true);
-		}
 		else
 			rchInvoke(json, call);
 	}
@@ -260,7 +259,7 @@
 					filter.render().find('.filter--search').addClass('hide');
 				}
 				self.search();
-			})["catch"]((err) => {
+			}).catch((err) => {
 				self.showNoConnectPage(err);
 			});
 		};
@@ -454,10 +453,10 @@
 								object.movie.title = targetJson.title;
 						}
 						filter.render().find('.filter--sort').append('<span class="qwatch-balancer-loader" style="width: 1.2em; height: 1.2em; margin-top: 0; background: url(./img/loader.svg) no-repeat 50% 50%; background-size: contain; margin-left: 0.5em"></span>');
-						self.lifeSource().then(self.startSource).then(resolve)["catch"](reject);
+						self.lifeSource().then(self.startSource).then(resolve).catch(reject);
 					}
 					else
-						self.startSource(targetJson).then(resolve)["catch"](reject);
+						self.startSource(targetJson).then(resolve).catch(reject);
 				}, reject);
 			});
 		};
@@ -1547,7 +1546,7 @@
 					if (Navigator.canmove('right'))
 						Navigator.move('right');
 					else
-					filter.show(Lampa.Lang.translate('title_filter'), 'filter');
+						filter.show(Lampa.Lang.translate('title_filter'), 'filter');
 				},
 				left: () => {
 					if (Navigator.canmove('left'))
