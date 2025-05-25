@@ -2,7 +2,25 @@
 	'use strict';
 
 	const hostAddress = 'http://smotret24.ru/';
-	const balancersList = ['kinotochka', 'kinopub', 'lumex', 'filmix', 'filmixtv', 'fxapi', 'redheadsound', 'animevost', 'animego', 'animedia', 'animebesst', 'anilibria', 'rezka', 'rhsprem', 'kodik', 'remux', 'animelib', 'kinoukr', 'rc/filmix', 'rc/fxapi', 'rc/rhs', 'vcdn', 'lumex', 'collaps', 'collaps-dash', 'hdvb', 'mirage', 'alloha'];
+	const balancersList = [
+		'alloha', 'anilibria', 'animebesst',
+		'animedia', 'animego', 'animelib',
+		'animevost', 'ashdi', 'autoembed',
+		'cdnmovies', 'cdnvideohub', 'collaps',
+		'collaps-dash', 'fancdn', 'filmix',
+		'filmixtv', 'fxapi', 'hdvb',
+		'hydraflix', 'iframevideo', 'kinopub',
+		'kinotochka', 'kinoukr', 'kodik',
+		'lumex', 'lumex', 'mirage',
+		'moonanime', 'movpi', 'pidtor',
+		'rc/filmix', 'rc/fxapi', 'rc/rhs',
+		'redheadsound', 'remux', 'rezka',
+		'rgshows', 'rhsprem', 'smashystream',
+		'vcdn', 'vdbmovies', 'vibix',
+		'videasy', 'videocdn', 'videodb',
+		'videoseed', 'vidlink', 'vidsrc',
+		'vokino', 'zetflix'
+	];
 
 	if (!window.rch) {
 		Lampa.Utils.putScript(['https://qlampa.github.io/plugins/invc-rch.js'], () => { }, false, () => {
@@ -1986,9 +2004,8 @@
 		});
 
 		if (Lampa.Manifest.app_digital >= 177) {
-
-			//const balancers_sync = ["filmix", 'filmixtv', "fxapi", "rezka", "rhsprem", "lumex", "videodb", "collaps", "collaps-dash", "hdvb", "zetflix", "kodik", "ashdi", "kinoukr", "kinotochka", "remux", "iframevideo", "cdnmovies", "anilibria", "animedia", "animego", "animevost", "animebesst", "redheadsound", "alloha", "animelib", "moonanime", "kinopub", "vibix", "vdbmovies", "fancdn", "cdnvideohub", "vokino", "rc/filmix", "rc/fxapi", "rc/rhs", "vcdn", "videocdn", "mirage", "hydraflix", "videasy", "vidsrc", "movpi", "vidlink", "twoembed", "autoembed", "smashystream", "autoembed", "rgshows", "pidtor", "videoseed"];
 			for (const balancerName of balancersList) {
+				// @todo: rename to prevent conflicts with other plugins
 				Lampa.Storage.sync('online_choice_' + balancerName, 'object_object');
 			}
 			Lampa.Storage.sync('online_watched_prefs', 'object_object');
