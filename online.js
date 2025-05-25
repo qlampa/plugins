@@ -1154,7 +1154,7 @@
 
 					if (isSeries && !episode) {
 						const maxEpisodeNumberLength = videos.length.toString().length;
-						image.append('<div class="qwatch-item__episode-number">' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength) + '</div>'); // @test: 'String.prototype.padStart()' is available since ES8
+						image.append('<div class="qwatch-item__episode-number">' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength, '0') + '</div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						loader.remove();
 					}
 					else if (!isSeries && ['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
@@ -1169,7 +1169,7 @@
 							loader.remove();
 							if (isSeries) {
 								const maxEpisodeNumberLength = videos.length.toString().length;
-								image.append('<div class="qwatch-item__episode-number">' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength) + '</div>'); // @test: 'String.prototype.padStart()' is available since ES8
+								image.append('<div class="qwatch-item__episode-number">' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength, '0') + '</div>'); // @test: 'String.prototype.padStart()' is available since ES8
 							}
 						};
 						thumbImg.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
