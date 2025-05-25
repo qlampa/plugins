@@ -290,7 +290,7 @@
 					network.timeout(10_000);
 					network.silent(account(hostAddress + 'externalids?' + query.join('&')), (externalIds) => {
 						for (const id in externalIds)
-							object.movie[id] = externalJson[id];
+							object.movie[id] = externalIds[id];
 
 						resolve();
 					}, resolve);
@@ -315,7 +315,7 @@
 		};
 		this.addRequestParams = function (url) {
 			let query = [];
-			
+
 			query.push('id=' + object.movie.id);
 			if (object.movie.imdb_id)
 				query.push('imdb_id=' + object.movie.imdb_id);
@@ -565,16 +565,35 @@
 				});
 			}
 		};
+		/**
+		 * @typedef {object} PlayObject
+		 * @param {string} title
+		 * @param {string} url
+		 * @param {string} url_reserve
+		 * @param {object[]} quality
+		 * @param {object} timeline
+		 * @param {object[]} subtitles
+		 * @param {function} callback
+		 **/
+		/**
+		 * construct player object
+		 * @param {object} file source video file
+		 * @returns {PlayObject} player object
+		 **/
 		this.toPlayObject = function (file) {
 			return {
-				'title': file.title,
-				'url': file.url,
-				'quality': file.qualities,
-				'timeline': file.timeline,
-				'subtitles': file.subtitles,
-				'callback': file.mark
+				title: file.title,
+				url: file.url,
+				quality: file.qualities,
+				timeline: file.timeline,
+				subtitles: file.subtitles,
+				callback: file.markWatched
 			};
 		};
+		/**
+		 * parse primary and reserve urls
+		 * @param {PlayObject} play player object
+		 **/
 		this.setReserveUrl = function (play) {
 			if (play.url && typeof play.url == 'string' && play.url.indexOf(' or ') !== -1) {
 				let urls = play.url.split(' or ');
@@ -582,7 +601,11 @@
 				play.url_reserve = urls[1];
 			}
 		};
-		this.setDefaultQuality = function (play) {
+		/**
+		 * parse qualities and set url based on default quality preference
+		 * @param {PlayObject} play player object
+		 **/
+		this.setDefaultQualityUrl = function (play) {
 			if (Lampa.Arrays.getKeys(play.quality).length) {
 				for (const key in play.quality) {
 					const value = play.quality[key];
@@ -612,14 +635,13 @@
 						playObject['hls_manifest_timeout'] = json_call.hls_manifest_timeout || json.hls_manifest_timeout;
 						playObject['subtitles'] = json.subtitles;
 						// prevent preroll ads
-						//first.vast_url = json.vast_url;
-						//first.vast_msg = json.vast_msg;
+						playObject['vast_url'] = '';//json.vast_url;
+						playObject['vast_msg'] = '';//json.vast_msg;
 						this.setReserveUrl(playObject);
-						this.setDefaultQuality(playObject);
+						this.setDefaultQualityUrl(playObject);
 
 						if (video.season) {
 							// @todo: prepend episode index to title
-
 							videos.forEach((episodeFile) => {
 								let playCell = this.toPlayObject(episodeFile);
 								if (episodeFile == video)
@@ -637,8 +659,8 @@
 													playCell.quality = stream_json.quality || episodeFile.qualities;
 													playCell.subtitles = stream.subtitles;
 													this.setReserveUrl(playCell);
-													this.setDefaultQuality(playCell);
-													episodeFile.mark();
+													this.setDefaultQualityUrl(playCell);
+													episodeFile.markWatched();
 												}
 												else {
 													playCell.url = '';
@@ -656,7 +678,7 @@
 									playCell.url = episodeFile.url;
 
 								this.setReserveUrl(playCell);
-								this.setDefaultQuality(playCell);
+								this.setDefaultQualityUrl(playCell);
 								playlist.push(playCell);
 							});
 
@@ -666,10 +688,11 @@
 						else
 							playlist.push(playObject);
 
+						// @todo: when video switched via external player it's not marked as watched | add some listener to player / make url also accessible via callback
 						if (playObject.url) {
 							Lampa.Player.play(playObject);
 							Lampa.Player.playlist(playlist);
-							video.mark();
+							video.markWatched();
 							this.updateBalancer(activeBalancer);
 						}
 						else
@@ -905,10 +928,11 @@
 			scroll.body().append(Lampa.Template.get('qwatch_page_content_loader'));
 		};
 		/**
-		 * Загрузка
-		 */
-		this.setLoading = function (status) {
-			if (status)
+		 * page loading
+		 * @param {boolean} state
+		 **/
+		this.setLoading = function (state) {
+			if (state)
 				this.activity.loader(true);
 			else {
 				this.activity.loader(false);
@@ -920,6 +944,7 @@
 		 */
 		this.filter = function (filter_items, choice) {
 			let select = [];
+
 			let add = (type, title) => {
 				let need = this.getChoice();
 				let items = filter_items[type];
@@ -947,10 +972,12 @@
 				reset: true
 			});
 			this.saveChoice(choice);
+
 			if (filter_items.season && filter_items.season.length)
 				add('season', Lampa.Lang.translate('torrent_serial_season'));
 			if (filter_items.voice && filter_items.voice.length)
 				add('voice', Lampa.Lang.translate('torrent_parser_voice'));
+
 			filter.set('filter', select);
 			filter.set('sort', filter_sources.map((e) => {
 				return {
@@ -999,12 +1026,12 @@
 			else
 				call(episodes);
 		};
-		this.getWatched = function () {
+		this.getWatchedPrefs = function () {
 			let videoId = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
 			let watchedList = Lampa.Storage.cache('online_watched_prefs', 5000, {});
 			return watchedList[videoId];
 		};
-		this.setWatched = function (entry) {
+		this.setWatchedPrefs = function (entry) {
 			let videoId = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
 			let watchedList = Lampa.Storage.cache('online_watched_prefs', 5000, {});
 			if (!watchedList[videoId])
@@ -1014,18 +1041,18 @@
 			this.updateWatched();
 		};
 		this.updateWatched = function () {
-			let watchedItem = this.getWatched();
+			let watchedPrefs = this.getWatchedPrefs();
 			let body = scroll.body().find('.qwatch-watched .qwatch-watched__body').empty();
-			if (watchedItem) {
+			if (watchedPrefs) {
 				let lines = [];
-				if (watchedItem.balancer_name)
-					lines.push(watchedItem.balancer_name);
-				if (watchedItem.voice_name)
-					lines.push(watchedItem.voice_name);
-				if (watchedItem.season)
-					lines.push(Lampa.Lang.translate('torrent_serial_season') + ' ' + watchedItem.season);
-				if (watchedItem.episode)
-					lines.push(Lampa.Lang.translate('torrent_serial_episode') + ' ' + watchedItem.episode);
+				if (watchedPrefs.balancer_name)
+					lines.push(watchedPrefs.balancer_name);
+				if (watchedPrefs.voice_name)
+					lines.push(watchedPrefs.voice_name);
+				if (watchedPrefs.season)
+					lines.push(Lampa.Lang.translate('torrent_serial_season') + ' ' + watchedPrefs.season);
+				if (watchedPrefs.episode)
+					lines.push(Lampa.Lang.translate('torrent_serial_episode') + ' ' + watchedPrefs.episode);
 
 				lines.forEach((lineText) => {
 					body.append('<span>' + lineText + '</span>');
@@ -1036,7 +1063,7 @@
 		};
 		/**
 		 * video list draw
-		 * @param {object} videos
+		 * @param {object[]} videos
 		 **/
 		this.draw = function (videos) {
 			let callbacks = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
@@ -1126,7 +1153,8 @@
 						scrollToElement = html;
 
 					if (isSeries && !episode) {
-						image.append('<div class="qwatch-item__episode-number">' + ('0' + (video.episode || index + 1)).slice(-2) + '</div>');
+						const maxEpisodeNumberLength = videos.length.toString().length;
+						image.append('<div class="qwatch-item__episode-number">' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength) + '</div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						loader.remove();
 					}
 					else if (!isSeries && ['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
@@ -1139,8 +1167,10 @@
 						thumbImg.onload = () => {
 							image.addClass('qwatch-item__img--loaded');
 							loader.remove();
-							if (isSeries)
-								image.append('<div class="qwatch-item__episode-number">' + ('0' + (video.episode || index + 1)).slice(-2) + '</div>');
+							if (isSeries) {
+								const maxEpisodeNumberLength = videos.length.toString().length;
+								image.append('<div class="qwatch-item__episode-number">' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength) + '</div>'); // @test: 'String.prototype.padStart()' is available since ES8
+							}
 						};
 						thumbImg.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
 						images.push(thumbImg);
@@ -1152,7 +1182,7 @@
 						html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 					}
 
-					video.mark = () => {
+					video.markWatched = () => {
 						// @note: 'online_view' is internal variable that affects other aspects
 						// @todo: we must still set even if hash exists (for series), also it would be good to max out the timeline
 						viewList = Lampa.Storage.cache('online_view', 5000, []);
@@ -1174,7 +1204,7 @@
 						if (voice_name_text.length > 32)
 							voice_name_text = voice_name_text.slice(0, 32) + '...';
 
-						this.setWatched({
+						this.setWatchedPrefs({
 							balancer: activeBalancer,
 							balancer_name: Lampa.Utils.capitalizeFirstLetter(sources[activeBalancer] ? sources[activeBalancer].name.split(' ')[0] : activeBalancer),
 							voice_id: choice.voice_id,
@@ -1183,7 +1213,7 @@
 							season: video.season
 						});
 					};
-					video.unmark = () => {
+					video.unmarkWatched = () => {
 						// @note: 'online_view' is internal variable that affects other aspects
 						viewList = Lampa.Storage.cache('online_view', 5000, []);
 						if (viewList.indexOf(hashFile) !== -1) {
@@ -1224,7 +1254,7 @@
 						},
 						onClearAllMark: () => {
 							for (let video of videos)
-								video.unmark();
+								video.unmarkWatched();
 						},
 						onClearAllTime: () => {
 							for (let video of videos)
@@ -1312,8 +1342,7 @@
 		 **/
 		this.contextMenu = function (params) {
 			params.html.on('hover:long', () => {
-				function show(extra) {
-					let enabled = Lampa.Controller.enabled().name;
+				function show(extra) {					
 					let menu = [];
 					if (Lampa.Platform.is('webos')) {
 						menu.push({
@@ -1374,6 +1403,7 @@
 						timeclearall: true
 					});
 
+					let enabled = Lampa.Controller.enabled().name;
 					Lampa.Select.show({
 						title: Lampa.Lang.translate('title_action'),
 						items: menu,
@@ -1382,8 +1412,8 @@
 						},
 						onSelect: (a) => {
 							// process entries callbacks @todo: better to rework this
-							if (a.mark) params.element.mark();
-							if (a.unmark) params.element.unmark();
+							if (a.mark) params.element.markWatched();
+							if (a.unmark) params.element.unmarkWatched();
 							if (a.timeclear) params.element.timeclear();
 							if (a.clearallmark) params.onClearAllMark();
 							if (a.timeclearall) params.onClearAllTime();
