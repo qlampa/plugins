@@ -441,7 +441,7 @@
 		};
 		this.createSource = function () {
 			return new Promise((resolve, reject) => {
-				let url = this.requestParams(hostAddress + 'lite/events?life=true');
+				let url = this.addRequestParams(hostAddress + 'lite/events?life=true');
 				network.timeout(15_000);
 				network.silent(account(url), (targetJson) => {
 					if (targetJson['accsdb'])
