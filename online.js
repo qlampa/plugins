@@ -582,7 +582,7 @@
 			if (Lampa.Arrays.getKeys(play.quality).length) {
 				for (const key in play.quality) {
 					const value = play.quality[key];
-					if (parseInt(i) == Lampa.Storage.field('video_quality_default')) {
+					if (parseInt(key) == Lampa.Storage.field('video_quality_default')) {
 						play.url = value;
 						this.setReserveUrl(play);
 					}
@@ -1514,11 +1514,6 @@
 			if (Lampa.Activity.active().activity !== this.activity)
 				return;
 
-			//if (!initialized) {
-			//	initialized = true;
-			//	this.initialize();
-			//}
-
 			Lampa.Background.immediately(Lampa.Utils.cardImgBackgroundBlur(object.movie));
 			Lampa.Controller.add('content', {
 				toggle: () => {
@@ -1798,16 +1793,16 @@
 			'.qwatch-item__details{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
 			'.qwatch-item__details>*{overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
 			'.qwatch-item__quality{padding-left:1em;white-space:nowrap}' +
-			'.qwatch-item .qwatch-split{font-size:.8em;margin:0 1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
+			'.qwatch-item .qwatch-split{font-size:.8em;margin-right:1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
 			'.qwatch-item.focus::after{content:\'\';position:absolute;top:-0.6em;left:-0.6em;right:-0.6em;bottom:-0.6em;-webkit-border-radius:.7em;border-radius:.7em;border:solid .3em #fff;z-index:-1;pointer-events:none}' +
 			'.qwatch-item+.qwatch-item{margin-top:1.5em}' +
 			'.qwatch-item--folder .qwatch-item__footer{margin-top:.8em}' +
 			'.qwatch-watched{padding:1em}' +
 			'.qwatch-watched__icon>svg{width:1.5em;height:1.5em}' +
 			'.qwatch-watched__body{padding-left:1em;padding-top:.1em;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap}' +
-			'.qwatch-watched__body>span+span::before{content:\' ● \';vertical-align:top;display:inline-block;margin:0 .5em}' +
+			'.qwatch-watched__body>span+span::before{content:\' ● \';vertical-align:top;display:inline-block;margin-right:.5em}' +
 			'.qwatch-item__rating{display:-webkit-inline-box;display:-webkit-inline-flex;display:-moz-inline-box;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
-			'.qwatch-item__rating>svg{width:1.3em !important;height:1.3em !important}' +
+			'.qwatch-item__rating>svg{width:1.2em;height:1.2em}' +
 			'.qwatch-item__rating>span{font-weight:600;padding-left:.5em}' +
 			'.qwatch-empty{line-height:1.4}' +
 			'.qwatch-empty__title{font-size:1.8em;margin-bottom:.3em}' +
