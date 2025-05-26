@@ -1028,14 +1028,12 @@
 		};
 		this.getEpisodes = function (season, call) {
 			let episodes = [];
-			if (['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
-				return call(episodes);
 
 			if (typeof object.movie.id == 'number' && object.movie.name) {
-				let tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
+				const tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
 				network.timeout(10_000);
-				network.native(tmdbUrl, (data) => {
-					episodes = data.episodes || [];
+				network.native(tmdbUrl, (response) => {
+					episodes = response["episodes"] || [];
 					call(episodes);
 				}, (a, c) => {
 					call(episodes);
@@ -1102,6 +1100,9 @@
 				let scrollToElement = false;
 				let scrollToMark = false;
 
+				// @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
+
+				const maxEpisodeNumberLength = videos.length.toString().length;
 				videos.forEach((video, index) => {
 					let episode = isSeries && episodes.length && !callbacks.similars ? episodes.find((e) => {
 						return e.episode_number == video.episode;
@@ -1171,8 +1172,7 @@
 						scrollToElement = html;
 
 					if (isSeries && !episode) {
-						const maxEpisodeNumberLength = videos.length.toString().length;
-						image.append('<div class="qwatch-item__episode-number">' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength, '0') + '</div>'); // @test: 'String.prototype.padStart()' is available since ES8
+						image.append('<div class="qwatch-item__episode-number"><span>' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						loader.remove();
 					}
 					else if (!isSeries && ['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
@@ -1185,10 +1185,8 @@
 						thumbImg.onload = () => {
 							image.addClass('qwatch-item__img--loaded');
 							loader.remove();
-							if (isSeries) {
-								const maxEpisodeNumberLength = videos.length.toString().length;
-								image.append('<div class="qwatch-item__episode-number">' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength, '0') + '</div>'); // @test: 'String.prototype.padStart()' is available since ES8
-							}
+							if (isSeries)
+								image.append('<div class="qwatch-item__episode-number"><span>' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						};
 						thumbImg.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
 						images.push(thumbImg);
@@ -1322,14 +1320,14 @@
 							thumbnail.onload = () => {
 								image.addClass('qwatch-item__img--loaded');
 								loader.remove();
-								image.append('<div class="qwatch-item__episode-number">' + ('0' + episode.episode_number).slice(-2) + '</div>');
+								image.append('<div class="qwatch-item__episode-number"><span>' + String(episode.episode_number).padStart(maxEpisodeNumberLength, '0') + '</span></div>');
 							};
 							thumbnail.src = Lampa.TMDB.image('t/p/w300' + episode.still_path);
 							images.push(thumbnail);
 						}
 						else {
 							loader.remove();
-							image.append('<div class="qwatch-item__episode-number">' + ('0' + episode.episode_number).slice(-2) + '</div>');
+							image.append('<div class="qwatch-item__episode-number"><span>' + String(episode.episode_number).padStart(maxEpisodeNumberLength, '0') + '</span></div>');
 						}
 
 						html.on('hover:focus', (event) => {
@@ -1840,6 +1838,7 @@
 			'.qwatch-item__watched{position:absolute;top:1em;left:1em;background:rgba(0,0,0,0.45);-webkit-border-radius:100%;border-radius:100%;padding:.25em;font-size:.76em}' +
 			'.qwatch-item__watched>svg{width:1.5em !important;height:1.5em !important}' +
 			'.qwatch-item__episode-number{position:absolute;top:0;left:0;right:0;bottom:0;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-box-pack:center;-webkit-justify-content:center;-moz-box-pack:center;-ms-flex-pack:center;justify-content:center;font-size:2em;font-weight:600}' +
+			'.qwatch-item__episode-number>span{background-color:rgba(33,31,27,0.7);-webkit-border-radius:5px;-moz-border-radius:5px;border-radius:5px;padding:.1em .2em .1em .2em;}' +
 			'.qwatch__loader{position:absolute;top:50%;left:50%;width:2em;height:2em;margin-left:-1em;margin-top:-1em;background:url(./img/loader.svg) no-repeat center center;-webkit-background-size:contain;-o-background-size:contain;background-size:contain}' +
 			'.qwatch-item__head,.qwatch-item__footer{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-pack:justify;-webkit-justify-content:space-between;-moz-box-pack:justify;-ms-flex-pack:justify;justify-content:space-between;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
 			'.qwatch-item__timeline{margin:.8em 0}' +
