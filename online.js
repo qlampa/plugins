@@ -146,105 +146,6 @@
 			return (entryJson['balanser'] || entryJson['name'].split(' ')[0]).toLowerCase();
 		}
 
-		this.initialize = function () {
-			this.setLoading(true);
-
-			filter.onSearch = (value) => {
-				clarificationSearchAdd(object.movie, value);
-
-				Lampa.Activity.replace({
-					search: value,
-					clarification: true,
-					similar: true
-				});
-			};
-			filter.onBack = () => {
-				this.start();
-			};
-
-			filter.render().find('.selector').on('hover:enter', () => { clearInterval(balancer_timer); });
-			filter.render().find('.filter--search').appendTo(filter.render().find('.torrent-filter'));
-
-			filter.onSelect = (type, a, b) => {
-				if (type == 'filter') {
-					if (a.reset) {
-						clarificationSearchDelete(object.movie);
-
-						this.replaceChoice({
-							season: 0,
-							voice: 0,
-							voice_url: '',
-							voice_name: ''
-						});
-						setTimeout(() => {
-							Lampa.Select.close();
-							Lampa.Activity.replace({
-								clarification: 0,
-								similar: 0
-							});
-						}, 10);
-					}
-					else {
-						let url = filterFound[a.stype][b.index].url;
-						let choice = this.getChoice();
-						if (a.stype == 'voice') {
-							choice.voice_name = filterFound.voice[b.index].title;
-							choice.voice_url = url;
-						}
-						choice[a.stype] = b.index;
-						this.saveChoice(choice);
-						this.reset();
-						this.request(url);
-						setTimeout(Lampa.Select.close, 10);
-					}
-				}
-				else if (type == 'sort') {
-					Lampa.Select.close();
-					object.lampac_custom_select = a.source;
-					this.changeBalancer(a.source);
-				}
-			};
-			if (filter.addButtonBack)
-				filter.addButtonBack();
-			filter.render().find('.filter--sort span').text(Lampa.Lang.translate('qwatch_balancer'));
-			scroll.body().addClass('torrent-list');
-
-			explorer.appendHead(filter.render());
-			explorer.appendFiles(scroll.render());
-			scroll.minus(explorer.render().find('.explorer__files-head'));
-			scroll.body().append(Lampa.Template.get('qwatch_page_content_loader'));
-
-			Lampa.Controller.enable('content');
-			this.setLoading(false);
-
-			if (object.balancer) {
-				explorer.render().find('.filter--search').remove();
-				sources = {};
-				sources[object.balancer] = { name: object.balancer };
-				activeBalancer = object.balancer;
-				filterSources = [];
-
-				return network.native(object.url.replace('rjson=', 'nojson='), this.parse.bind(this), () => {
-					explorer.render().find('.torrent-filter').remove();
-					this.showEmptyPage();
-				}, false, {
-					dataType: 'text'
-				});
-			}
-
-			this.externalids().then(() => {
-				return this.createSource();
-			}).then((json) => {
-				if (!balancersList.find((balancer) => {
-					return activeBalancer.slice(0, balancer.length) == balancer;
-				})) {
-					filter.render().find('.filter--search').addClass('hide');
-				}
-				this.search();
-			}).catch((err) => {
-				this.showNoConnectPage(err);
-			});
-		};
 		this.rch = function (json, noReset) {
 			rchRun(json, () => {
 				if (!noReset)
@@ -440,11 +341,108 @@
 			});
 		};
 		/**
-		 * Подготовка
-		 */
+		 * activity creation callback
+		 **/
 		this.create = function () {
-			this.initialize();
-			return explorer.render();
+			this.setLoading(true);
+
+			filter.onSearch = (value) => {
+				clarificationSearchAdd(object.movie, value);
+
+				Lampa.Activity.replace({
+					search: value,
+					clarification: true,
+					similar: true
+				});
+			};
+			filter.onBack = () => {
+				this.start();
+			};
+
+			filter.render().find('.selector').on('hover:enter', () => { clearInterval(balancer_timer); });
+			filter.render().find('.filter--search').appendTo(filter.render().find('.torrent-filter'));
+
+			filter.onSelect = (type, a, b) => {
+				if (type == 'filter') {
+					if (a.reset) {
+						clarificationSearchDelete(object.movie);
+
+						this.replaceChoice({
+							season: 0,
+							voice: 0,
+							voice_url: '',
+							voice_name: ''
+						});
+						setTimeout(() => {
+							Lampa.Select.close();
+							Lampa.Activity.replace({
+								clarification: 0,
+								similar: 0
+							});
+						}, 10);
+					}
+					else {
+						let url = filterFound[a.stype][b.index].url;
+						let choice = this.getChoice();
+						if (a.stype == 'voice') {
+							choice.voice_name = filterFound.voice[b.index].title;
+							choice.voice_url = url;
+						}
+						choice[a.stype] = b.index;
+						this.saveChoice(choice);
+						this.reset();
+						this.request(url);
+						setTimeout(Lampa.Select.close, 10);
+					}
+				}
+				else if (type == 'sort') {
+					Lampa.Select.close();
+					object.lampac_custom_select = a.source;
+					this.changeBalancer(a.source);
+				}
+			};
+			if (filter.addButtonBack)
+				filter.addButtonBack();
+			filter.render().find('.filter--sort span').text(Lampa.Lang.translate('qwatch_balancer'));
+			scroll.body().addClass('torrent-list');
+
+			explorer.appendHead(filter.render());
+			explorer.appendFiles(scroll.render());
+			scroll.minus(explorer.render().find('.explorer__files-head'));
+			scroll.body().append(Lampa.Template.get('qwatch_page_content_loader'));
+
+			Lampa.Controller.enable('content');
+			this.setLoading(false);
+
+			if (object.balancer) {
+				explorer.render().find('.filter--search').remove();
+				sources = {};
+				sources[object.balancer] = { name: object.balancer };
+				activeBalancer = object.balancer;
+				filterSources = [];
+
+				return network.native(object.url.replace('rjson=', 'nojson='), this.parse.bind(this), () => {
+					explorer.render().find('.torrent-filter').remove();
+					this.showEmptyPage();
+				}, false, {
+					dataType: 'text'
+				});
+			}
+
+			this.externalids().then(() => {
+				return this.createSource();
+			}).then((json) => {
+				if (!balancersList.find((balancer) => {
+					return activeBalancer.slice(0, balancer.length) == balancer;
+				})) {
+					filter.render().find('.filter--search').addClass('hide');
+				}
+				this.search();
+			}).catch((err) => {
+				this.showNoConnectPage(err);
+			});
+
+			//return this.render();
 		};
 		/**
 		 * Начать поиск
@@ -1544,6 +1542,17 @@
 			});
 			Lampa.Controller.toggle('content');
 		};
+		/**
+		 * activity render callback
+		 **/
+		this.render = function () {
+			return explorer.render();
+		};
+		this.pause = function () { };
+		this.stop = function () { };
+		/**
+		 * activity destroy callback
+		 **/
 		this.destroy = function () {
 			network.clear();
 			images.length = 0;
