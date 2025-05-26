@@ -844,7 +844,7 @@
 
 				folder.title = folder.title || folder.text;
 				folder.time = folder.time || '';
-				folder.details = details.join('<div class="qwatch-split">●</div>');
+				folder.details = details.join('<span class="qwatch-split">●</span>');
 
 				let folderElement = Lampa.Template.get('qwatch_page_folder', folder);
 				if (folder.img) {
@@ -1142,7 +1142,7 @@
 					if (details.length > 0)
 						video.details = details.map((d) => {
 							return '<span>' + d + '</span>';
-						}).join('<div class="qwatch-split">●</div>');
+						}).join('<span class="qwatch-split">●</span>');
 
 					let html = Lampa.Template.get('qwatch_page_full', video);
 					let loader = html.find('.qwatch__loader');
