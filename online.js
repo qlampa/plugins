@@ -1090,44 +1090,45 @@
 
 				// @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
 				const maxEpisodeNumberLength = videos.length.toString().length;
-				videos.forEach((video, index) => {
+				videos.forEach((element, index) => {
 					let episode = isSeries && episodes.length && !callbacks.similars ? episodes.find((e) => {
-						return e.episode_number == video.episode;
+						return e.episode_number == element.episode;
 					}) : false;
-					let episodeNumber = video.episode || index + 1;
-					let episodeLastWatched = choice.episodes_view[video.season];
-					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : false) || video.voice_name || (isSeries ? 'Неизвестно' : video.text) || 'Неизвестно';
-					if (video.quality) {
-						video.qualities = video.quality;
-						video.quality = Lampa.Arrays.getKeys(video.quality)[0];
+					let episodeNumber = element.episode || index + 1;
+					let episodeLastWatched = choice.episodes_view[element.season];
+					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : false) || element.voice_name || (isSeries ? 'Неизвестно' : element.text) || 'Неизвестно';
+					if (element.quality) {
+						element.qualities = element.quality;
+						element.quality = Lampa.Arrays.getKeys(element.quality)[0];
 					}
 
-					Lampa.Arrays.extend(video, {
+					Lampa.Arrays.extend(element, {
 						voice_name: voiceName,
-						details: voiceName.length > 60 ? voiceName.substr(0, 60) + '...' : voiceName,
+						details: voiceName,
 						quality: '',
 						time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true)
 					});
 
-					let hashTimeline = Lampa.Utils.hash(video.season ? [video.season, video.season > 10 ? ':' : '', video.episode, object.movie.original_title].join('') : object.movie.original_title);
-					let hashFile = Lampa.Utils.hash(video.season ? [video.season, video.season > 10 ? ':' : '', video.episode, object.movie.original_title, video.voice_name].join('') : object.movie.original_title + video.voice_name);
+					let hashTimeline = Lampa.Utils.hash(element.season ? [element.season, element.season > 10 ? ':' : '', element.episode, object.movie.original_title].join('') : object.movie.original_title);
+					let hashFile = Lampa.Utils.hash(element.season ? [element.season, element.season > 10 ? ':' : '', element.episode, object.movie.original_title, element.voice_name].join('') : object.movie.original_title + element.voice_name);
+
+					if (element.season) {
+						element.translate_episode_end = this.getLastEpisode(videos);
+						element.translate_voice = element.voice_name;
+					}
+					if (element.text && !episode)
+						element.title = element.text;
+					element.timeline = Lampa.Timeline.view(hashTimeline);
 
 					let details = [];
-					if (video.season) {
-						video.translate_episode_end = this.getLastEpisode(videos);
-						video.translate_voice = video.voice_name;
-					}
-					if (video.text && !episode)
-						video.title = video.text;
-					video.timeline = Lampa.Timeline.view(hashTimeline);
-
+					let rating = '';
 					if (episode) {
-						video.title = episode.name;
+						element.title = episode.name;
 
-						if (video.details.length < 30 && episode.vote_average)
-							details.push(Lampa.Template.get('qwatch_item_rating', {
+						if (episode.vote_average)
+							rating = Lampa.Template.get('qwatch_item_rating', {
 								rate: episode.vote_average.toFixed(1)
-							}, true));
+							}, true);
 
 						if (episode.air_date && isFullWidth)
 							details.push(Lampa.Utils.parseTime(episode.air_date).full);
@@ -1135,16 +1136,13 @@
 					else if (object.movie.release_date && isFullWidth)
 						details.push(Lampa.Utils.parseTime(object.movie.release_date).full);
 
-					if (!isSeries && object.movie.tagline && video.details.length < 30)
+					if (!isSeries && object.movie.tagline && element.details.length < 30)
 						details.push(object.movie.tagline);
-					if (video.details)
-						details.push(video.details);
-					if (details.length > 0)
-						video.details = details.map((d) => {
-							return '<span>' + d + '</span>';
-						}).join('<span class="qwatch-split">●</span>');
+					if (element.details)
+						details.push(element.details);
+					element.details = rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
 
-					let html = Lampa.Template.get('qwatch_page_full', video);
+					let html = Lampa.Template.get('qwatch_page_full', element);
 					let loader = html.find('.qwatch__loader');
 					let image = html.find('.qwatch-item__img');
 					if (object.balancer)
@@ -1159,7 +1157,7 @@
 						scrollToElement = html;
 
 					if (isSeries && !episode) {
-						image.append('<div class="qwatch-item__episode-number"><span>' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
+						image.append('<div class="qwatch-item__episode-number"><span>' + String(element.episode || index + 1).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						loader.remove();
 					}
 					else if (!isSeries && ['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
@@ -1173,32 +1171,32 @@
 							image.addClass('qwatch-item__img--loaded');
 							loader.remove();
 							if (isSeries)
-								image.append('<div class="qwatch-item__episode-number"><span>' + String(video.episode || index + 1).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
+								image.append('<div class="qwatch-item__episode-number"><span>' + String(element.episode || index + 1).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						};
 						thumbImg.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
 						images.push(thumbImg);
 					}
 
-					html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(video.timeline).children().css({
+					html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(element.timeline)/*.children().css({
 						'-webkit-transition': 'width .3s',
 						'-o-transition': 'width .3s',
 						'-moz-transition': 'width .3s',
 						'transition': 'width .3s'
-					}));
-					html.find('.qwatch-item__timeline').append(Lampa.Timeline.details(video.timeline)); // @test: just to check
+					})*/);
+					html.find('.qwatch-item__timeline').append(Lampa.Timeline.details(element.timeline)); // @test: just to check
 
 					if (viewList.indexOf(hashFile) !== -1) {
 						scrollToMark = html;
 						html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 					}
 
-					video.clearTimeline = () => {
-						video.timeline.percent = 0;
-						video.timeline.time = 0;
-						video.timeline.duration = 0;
-						Lampa.Timeline.update(video.timeline);
+					element.clearTimeline = () => {
+						element.timeline.percent = 0;
+						element.timeline.time = 0;
+						element.timeline.duration = 0;
+						Lampa.Timeline.update(element.timeline);
 					};
-					video.markWatched = () => {
+					element.markWatched = () => {
 						// @note: 'online_view' is internal variable that affects other aspects
 						viewList = Lampa.Storage.cache('online_view', 5000, []);
 						if (viewList.indexOf(hashFile) == -1) {
@@ -1210,17 +1208,17 @@
 						}
 
 						// max out the timeline
-						video.timeline.percent = 100;
-						Lampa.Timeline.update(video.timeline);
+						element.timeline.percent = 100;
+						Lampa.Timeline.update(element.timeline);
 
 						choice = this.getChoice();
 						if (!isSeries)
 							choice.movie_view = hashFile;
 						else
-							choice.episodes_view[video.season] = episodeNumber;
+							choice.episodes_view[element.season] = episodeNumber;
 						this.saveChoice(choice);
 
-						let voice_name_text = (choice.voice_name || video.voice_name || video.title);
+						let voice_name_text = (choice.voice_name || element.voice_name || element.title);
 						if (voice_name_text.length > 32)
 							voice_name_text = voice_name_text.slice(0, 32) + '...';
 
@@ -1229,11 +1227,11 @@
 							balancer_name: Lampa.Utils.capitalizeFirstLetter(providersAlive[providerActive] ? providersAlive[providerActive].name.split(' ')[0] : providerActive),
 							voice_id: choice.voice_id,
 							voice_name: voice_name_text,
-							episode: video.episode,
-							season: video.season
+							episode: element.episode,
+							season: element.season
 						});
 					};
-					video.unmarkWatched = () => {
+					element.unmarkWatched = () => {
 						// @note: 'online_view' is internal variable that affects other aspects
 						viewList = Lampa.Storage.cache('online_view', 5000, []);
 						if (viewList.indexOf(hashFile) !== -1) {
@@ -1241,7 +1239,7 @@
 							Lampa.Storage.remove('online_view', hashFile);
 
 							html.find('.qwatch-item__watched').remove();
-							video.clearTimeline();
+							element.clearTimeline();
 						}
 					};
 
@@ -1249,22 +1247,22 @@
 						if (object.movie.id)
 							Lampa.Favorite.add('history', object.movie, 100);
 						if (callbacks.onEnter)
-							callbacks.onEnter(video, html);
+							callbacks.onEnter(element, html);
 					}).on('hover:focus', (event) => {
 						lastFocusTarget = event.target;
 						if (callbacks.onFocus)
-							callbacks.onFocus(video, html);
+							callbacks.onFocus(element, html);
 						scroll.update($(event.target), true);
 					});
 					if (callbacks.onRender)
-						callbacks.onRender(video, html);
+						callbacks.onRender(element, html);
 
 					this.contextMenu({
 						html: html,
-						element: video,
+						element: element,
 						onFile: (call) => {
 							if (callbacks.onContextMenu)
-								callbacks.onContextMenu(video, html, call);
+								callbacks.onContextMenu(element, html, call);
 						},
 						onClearAllMark: () => {
 							for (let video of videos)
@@ -1288,10 +1286,11 @@
 					let left = episodes.slice(videos.length);
 					left.forEach((episode) => {
 						let details = [];
+						let rating = '';
 						if (episode.vote_average)
-							details.push(Lampa.Template.get('qwatch_item_rating', {
+							rating = Lampa.Template.get('qwatch_item_rating', {
 								rate: episode.vote_average.toFixed(1)
-							}, true));
+							}, true);
 
 						let daysLeft = 0;
 						if (episode.air_date) {
@@ -1304,9 +1303,7 @@
 						let html = Lampa.Template.get('qwatch_page_full', {
 							title: episode.name,
 							time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true),
-							details: details.length > 0 ? details.map((d) => {
-								return '<span>' + d + '</span>';
-							}).join('<span class="qwatch-split">●</span>') : '',
+							details: rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : ''),
 							quality: (daysLeft > 0 ? (Lampa.Lang.translate('full_episode_days_left') + ': ' + daysLeft) : Lampa.Lang.translate('tv_status_post_production'))
 						});
 
@@ -1811,7 +1808,7 @@
 			'.qwatch-item__details{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
 			'.qwatch-item__details>span{overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
 			'.qwatch-item__quality{padding-left:1em;white-space:nowrap}' +
-			'.qwatch-item .qwatch-split{font-size:.8em;margin:0 1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
+			'.qwatch-item .qwatch-split{font-size:.8em;margin:0 .5em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
 			'.qwatch-item.focus::after{content:\'\';position:absolute;top:-0.6em;left:-0.6em;right:-0.6em;bottom:-0.6em;-webkit-border-radius:.7em;border-radius:.7em;border:solid .3em #fff;z-index:-1;pointer-events:none}' +
 			'.qwatch-item+.qwatch-item{margin-top:1.5em}' +
 			'.qwatch-item--folder .qwatch-item__footer{margin-top:.8em}' +
@@ -1872,7 +1869,7 @@
 						'</div>' +
 						'<div class="qwatch-item__timeline"/>' +
 						'<div class="qwatch-item__footer">' +
-							'<div class="qwatch-item__details"><span>{details}</span></div>' +
+							'<div class="qwatch-item__details">{details}</div>' +
 							'<div class="qwatch-item__quality">{quality}</div>' +
 						'</div>' +
 					'</div>' +
