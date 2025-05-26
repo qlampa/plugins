@@ -23,7 +23,7 @@
 	];
 
 	if (!window.rch) {
-		Lampa.Utils.putScript(['https://qlampa.github.io/plugins/invc-rch.js'], () => { }, false, () => {
+		Lampa.Utils.putScript(['https://qlampa.github.io/plugins/invc-rch.js'], () => { }, null, () => {
 			if (!window.rch.startTypeInvoke)
 				window.rch.typeInvoke('http://smotret24.ru', () => { });
 		}, true);
@@ -55,40 +55,14 @@
 
 	function rchRun(json, call) {
 		if (signalR === undefined)
-			Lampa.Utils.putScript(['https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.25/signalr.js'], () => { }, false, () => {
+			Lampa.Utils.putScript(['https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.25/signalr.js'], () => { }, null, () => {
 				rchInvoke(json, call);
 			}, true);
 		else
 			rchInvoke(json, call);
 	}
 
-	function account(url) {
-		function getIP(callback) {
-			let xhr = new XMLHttpRequest();
-			xhr.open('GET', 'https://api.ipify.org?format=json', true);
-			xhr.onreadystatechange = () => {
-				if (xhr.readyState === 4) {
-					if (xhr.status === 200) {
-						try {
-							let data = JSON.parse(xhr.responseText);
-							callback(null, data.ip);
-						}
-						catch (err) {
-							callback('Ошибка парсинга JSON', null);
-						}
-					}
-					else
-						callback('Ошибка запроса: ' + xhr.status, null);
-				}
-			};
-			xhr.onerror = () => {
-				callback('Ошибка сети', null);
-			};
-			xhr.send();
-		}
-
-		url = url + '';
-
+	function addAccountParams(url) {
 		if (url.indexOf('account_email=') == -1) {
 			let email = Lampa.Storage.get('account_email');
 			if (email)
@@ -105,24 +79,27 @@
 				url = Lampa.Utils.addUrlComponent(url, 'uid=' + encodeURIComponent(uid));
 		}
 
-		if (url.indexOf('token=') == -1) {
-			let token = '';
-			if (token != '')
-				url = Lampa.Utils.addUrlComponent(url, 'token=');
-		}
-
-		if (Lampa.Storage.get('user_ip') == '' && !Lampa.Storage.get('user_ip')) {
-			getIP((error, ip) => {
-				if (!error && ip) {
-					Lampa.Storage.set('user_ip', ip);
-				}
-			});
-		}
-
-		if (Lampa.Storage.get('user_ip'))
-			url = Lampa.Utils.addUrlComponent(url, 'user_ip=' + Lampa.Storage.get('user_ip'));
-
 		return url;
+	}
+
+	function clarificationSearchAdd(movie, value) {
+		var id = Lampa.Utils.hash(movie.number_of_seasons ? movie.original_name : movie.original_title); // @test: just use movie.id?
+		var all = Lampa.Storage.get('clarification_search', '{}');
+		all[id] = value;
+		Lampa.Storage.set('clarification_search', all);
+	}
+
+	function clarificationSearchDelete(movie) {
+		var id = Lampa.Utils.hash(movie.number_of_seasons ? movie.original_name : movie.original_title); // @test: just use movie.id?
+		var all = Lampa.Storage.get('clarification_search', '{}');
+		delete all[id];
+		Lampa.Storage.set('clarification_search', all);
+	}
+
+	function clarificationSearchGet(movie) {
+		var id = Lampa.Utils.hash(movie.number_of_seasons ? movie.original_name : movie.original_title); // @test: just use movie.id?
+		var all = Lampa.Storage.get('clarification_search', '{}');
+		return all[id];
 	}
 
 	function QWatchComponent(object) {
@@ -136,6 +113,7 @@
 		let filter = new Lampa.Filter(object);
 		let lastFocusTarget;
 
+		// container of the available (alive) sources
 		let sources = {};
 		let activeSourceUrl;
 		let activeBalancer;
@@ -150,13 +128,16 @@
 		let life_wait_times = 0;
 		let life_wait_timer;
 
-		let filter_sources = {};
+		// translations used for titles of the filter fields
 		let filterTranslation = {
 			season: Lampa.Lang.translate('torrent_serial_season'),
 			voice: Lampa.Lang.translate('torrent_parser_voice'),
 			source: Lampa.Lang.translate('settings_rest_source')
 		};
-		let filter_find = {
+		// list of the available sources to filter
+		let filterSources = [];
+		// container of the filtered objects
+		let filterFound = {
 			season: [],
 			voice: []
 		};
@@ -165,31 +146,11 @@
 			return (entryJson['balanser'] || entryJson['name'].split(' ')[0]).toLowerCase();
 		}
 
-		function clarificationSearchAdd(value) {
-			var id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
-			var all = Lampa.Storage.get('clarification_search', '{}');
-			all[id] = value;
-			Lampa.Storage.set('clarification_search', all);
-		}
-
-		function clarificationSearchDelete() {
-			var id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
-			var all = Lampa.Storage.get('clarification_search', '{}');
-			delete all[id];
-			Lampa.Storage.set('clarification_search', all);
-		}
-
-		function clarificationSearchGet() {
-			var id = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
-			var all = Lampa.Storage.get('clarification_search', '{}');
-			return all[id];
-		}
-
 		this.initialize = function () {
 			this.setLoading(true);
 
 			filter.onSearch = (value) => {
-				clarificationSearchAdd(value);
+				clarificationSearchAdd(object.movie, value);
 
 				Lampa.Activity.replace({
 					search: value,
@@ -201,15 +162,13 @@
 				this.start();
 			};
 
-			filter.render().find('.selector').on('hover:enter', () => {
-				clearInterval(balancer_timer);
-			});
+			filter.render().find('.selector').on('hover:enter', () => { clearInterval(balancer_timer); });
 			filter.render().find('.filter--search').appendTo(filter.render().find('.torrent-filter'));
 
 			filter.onSelect = (type, a, b) => {
 				if (type == 'filter') {
 					if (a.reset) {
-						clarificationSearchDelete();
+						clarificationSearchDelete(object.movie);
 
 						this.replaceChoice({
 							season: 0,
@@ -226,10 +185,10 @@
 						}, 10);
 					}
 					else {
-						let url = filter_find[a.stype][b.index].url;
+						let url = filterFound[a.stype][b.index].url;
 						let choice = this.getChoice();
 						if (a.stype == 'voice') {
-							choice.voice_name = filter_find.voice[b.index].title;
+							choice.voice_name = filterFound.voice[b.index].title;
 							choice.voice_url = url;
 						}
 						choice[a.stype] = b.index;
@@ -263,9 +222,9 @@
 				sources = {};
 				sources[object.balancer] = { name: object.balancer };
 				activeBalancer = object.balancer;
-				filter_sources = [];
+				filterSources = [];
 
-				return network.native(account(object.url.replace('rjson=', 'nojson=')), this.parse.bind(this), () => {
+				return network.native(object.url.replace('rjson=', 'nojson='), this.parse.bind(this), () => {
 					explorer.render().find('.torrent-filter').remove();
 					this.showEmptyPage();
 				}, false, {
@@ -306,7 +265,7 @@
 						query.push('kinopoisk_id=' + object.movie.kinopoisk_id);
 
 					network.timeout(10_000);
-					network.silent(account(hostAddress + 'externalids?' + query.join('&')), (externalIds) => {
+					network.silent(hostAddress + 'externalids?' + query.join('&'), (externalIds) => {
 						for (const id in externalIds)
 							object.movie[id] = externalIds[id];
 
@@ -358,7 +317,7 @@
 			if (lastBalancer[object.movie.id])
 				return lastBalancer[object.movie.id];
 			else
-				return Lampa.Storage.get('online_balanser', filter_sources.length ? filter_sources[0] : '');
+				return Lampa.Storage.get('online_balanser', filterSources.length ? filterSources[0] : '');
 		};
 		this.startSource = function (sourcesJson) {
 			return new Promise((resolve, reject) => {
@@ -371,15 +330,15 @@
 					};
 				};
 
-				filter_sources = Lampa.Arrays.getKeys(sources);
-				if (filter_sources.length) {
+				filterSources = Lampa.Arrays.getKeys(sources);
+				if (filterSources.length) {
 					if (lastBalancer[object.movie.id])
 						activeBalancer = lastBalancer[object.movie.id];
 					else
-						activeBalancer = Lampa.Storage.get('online_balanser', filter_sources[0]);
+						activeBalancer = Lampa.Storage.get('online_balanser', filterSources[0]);
 
 					if (!sources[activeBalancer] || (!sources[activeBalancer].show && !object.lampac_custom_select))
-						activeBalancer = filter_sources[0];
+						activeBalancer = filterSources[0];
 
 					activeSourceUrl = sources[activeBalancer].url;
 					resolve(sourcesJson);
@@ -414,9 +373,9 @@
 				};
 
 				network.timeout(3000);
-				network.silent(account(url), (lifeSourcesJson) => {
+				network.silent(url, (lifeSourcesJson) => {
 					life_wait_times++;
-					filter_sources = [];
+					filterSources = [];
 					sources = {};
 					lifeSourcesJson.online.forEach((entry) => {
 						let sourceName = getBalancerName(entry);
@@ -426,8 +385,8 @@
 							show: entry.show === undefined ? true : entry.show
 						};
 					});
-					filter_sources = Lampa.Arrays.getKeys(sources);
-					filter.set('sort', filter_sources.map((e) => {
+					filterSources = Lampa.Arrays.getKeys(sources);
+					filter.set('sort', filterSources.map((e) => {
 						return {
 							title: sources[e].name,
 							source: e,
@@ -459,9 +418,8 @@
 		};
 		this.createSource = function () {
 			return new Promise((resolve, reject) => {
-				let url = this.addRequestParams(hostAddress + 'lite/events?life=true');
 				network.timeout(15_000);
-				network.silent(account(url), (targetJson) => {
+				network.silent(this.addRequestParams(hostAddress + 'lite/events?life=true'), (targetJson) => {
 					if (targetJson['accsdb'])
 						return reject(targetJson);
 
@@ -486,14 +444,14 @@
 		 */
 		this.create = function () {
 			this.initialize();
-			return this.render();
+			return explorer.render();
 		};
 		/**
 		 * Начать поиск
 		 */
 		this.search = function () { //this.loading(true)
 			this.filter({
-				source: filter_sources
+				source: filterSources
 			}, this.getChoice());
 			this.find();
 		};
@@ -503,7 +461,7 @@
 		this.request = function (url) {
 			number_of_requests++;
 			if (number_of_requests < 10) {
-				network.native(account(url), this.parse.bind(this), this.showNoAnswerPage.bind(this), false, {
+				network.native(url, this.parse.bind(this), this.showNoAnswerPage.bind(this), false, {
 					dataType: 'text'
 				});
 				clearTimeout(number_of_requests_timer);
@@ -514,11 +472,17 @@
 			else
 				this.showEmptyPage();
 		};
-		this.parseJsonData = function (jsonDataString, name) {
+		/**
+		 * parse html page into json array
+		 * @param {string} htmlData 
+		 * @param {string} className 
+		 * @returns {array<object>} array of the elements
+		 */
+		this.parseJsonData = function (htmlData, className) {
 			try {
-				let html = $('<div>' + jsonDataString + '</div>');
+				let html = $('<div>' + htmlData + '</div>');
 				let elements = [];
-				html.find(name).each(function () {
+				html.find(className).each(function () {
 					let item = $(this);
 					let data = JSON.parse(item.attr('data-json'));
 					let season = item.attr('s');
@@ -566,7 +530,7 @@
 					Lampa.Controller.toggle('content');
 					network.clear();
 				});
-				network.native(account(file.url), (json) => {
+				network.native(file.url, (json) => {
 					if (json.rch) {
 						this.rch(json, () => {
 							Lampa.Loading.stop();
@@ -636,7 +600,7 @@
 				}
 			}
 		};
-		this.display = function (videos) {
+		this.showVideos = function (videos) {
 			this.draw(videos, {
 				onEnter: (video, html) => {
 					this.getFileUrl(video, (json, json_call) => {
@@ -727,10 +691,10 @@
 				}
 			});
 			this.filter({
-				season: filter_find.season.map((s) => {
+				season: filterFound.season.map((s) => {
 					return s.title;
 				}),
-				voice: filter_find.voice.map((b) => {
+				voice: filterFound.voice.map((b) => {
 					return b.title;
 				})
 			}, this.getChoice());
@@ -745,7 +709,7 @@
 				let videoButtons = this.parseJsonData(jsonData, '.videos__button');
 
 				if (videoItems.length == 1 && videoItems[0].method == 'link' && !videoItems[0].similar) {
-					filter_find.season = videoItems.map((s) => {
+					filterFound.season = videoItems.map((s) => {
 						return {
 							title: s.text,
 							url: s.url
@@ -759,55 +723,57 @@
 				else {
 					this.activity.loader(false);
 
-					let videos = videoItems.filter((videoItem) => {
+					let videoFiles = videoItems.filter((videoItem) => {
 						return videoItem.method == 'play' || videoItem.method == 'call';
 					});
 					let videoSimilars = videoItems.filter((videoItem) => {
 						return videoItem.similar;
 					});
 
-					if (videos.length) {
+					if (videoFiles.length) {
 						if (videoButtons.length) {
-							filter_find.voice = videoButtons.map((b) => {
+							filterFound.voice = videoButtons.map((b) => {
 								return {
 									title: b.text,
 									url: b.url
 								};
 							});
-							let select_voice_url = this.getChoice(activeBalancer).voice_url;
-							let select_voice_name = this.getChoice(activeBalancer).voice_name;
-							let find_voice_url = videoButtons.find((v) => {
-								return v.url == select_voice_url;
+
+							const choice = this.getChoice(activeBalancer);
+							let selectedVoiceUrl = choice["voice_url"];
+							let selectedVoiceName = choice["voice_name"];
+							let foundVoiceUrl = videoButtons.find((v) => {
+								return v.url == selectedVoiceUrl;
 							});
-							let find_voice_name = videoButtons.find((v) => {
-								return v.text == select_voice_name;
+							let foundVoiceName = videoButtons.find((v) => {
+								return v.text == selectedVoiceName;
 							});
-							let find_voice_active = videoButtons.find((v) => {
+							let foundVoiceIsActive = videoButtons.find((v) => {
 								return v.active;
 							});
 
-							if (find_voice_url && !find_voice_url.active) {
+							if (foundVoiceUrl && !foundVoiceUrl.active) {
 								this.replaceChoice({
-									voice: videoButtons.indexOf(find_voice_url),
-									voice_name: find_voice_url.text
+									voice: videoButtons.indexOf(foundVoiceUrl),
+									voice_name: foundVoiceUrl.text
 								});
-								this.request(find_voice_url.url);
+								this.request(foundVoiceUrl.url);
 							}
-							else if (find_voice_name && !find_voice_name.active) {
+							else if (foundVoiceName && !foundVoiceName.active) {
 								this.replaceChoice({
-									voice: videoButtons.indexOf(find_voice_name),
-									voice_name: find_voice_name.text
+									voice: videoButtons.indexOf(foundVoiceName),
+									voice_name: foundVoiceName.text
 								});
-								this.request(find_voice_name.url);
+								this.request(foundVoiceName.url);
 							}
 							else {
-								if (find_voice_active) {
+								if (foundVoiceIsActive) {
 									this.replaceChoice({
-										voice: videoButtons.indexOf(find_voice_active),
-										voice_name: find_voice_active.text
+										voice: videoButtons.indexOf(foundVoiceIsActive),
+										voice_name: foundVoiceIsActive.text
 									});
 								}
-								this.display(videos);
+								this.showVideos(videoFiles);
 							}
 						}
 						else {
@@ -816,7 +782,7 @@
 								voice_url: '',
 								voice_name: ''
 							});
-							this.display(videos);
+							this.showVideos(videoFiles);
 						}
 					}
 					else if (videoItems.length) {
@@ -826,15 +792,15 @@
 						}
 						else {
 							//this.activity.loader(true)
-							filter_find.season = videoItems.map((s) => {
+							filterFound.season = videoItems.map((video) => {
 								return {
-									title: s.text,
-									url: s.url
+									title: video.text,
+									url: video.url
 								};
 							});
 
-							const select_season = this.getChoice(activeBalancer).season;
-							const season = filter_find.season[select_season] || filter_find.season[0];
+							const selectedSeason = this.getChoice(activeBalancer).season;
+							const season = filterFound.season[selectedSeason] || filterFound.season[0]; // @test: debug this
 							this.request(season.url);
 						}
 					}
@@ -872,7 +838,7 @@
 						if (folder.img.charAt(0) === '/')
 							folder.img = hostAddress + folder.img.substring(1);
 						if (folder.img.indexOf('/proxyimg') !== -1)
-							folder.img = account(folder.img);
+							folder.img = addAccountParams(folder.img);
 					}
 
 					Lampa.Utils.imgLoad(imageElement, folder.img);
@@ -889,10 +855,10 @@
 			});
 
 			this.filter({
-				season: filter_find.season.map((s) => {
+				season: filterFound.season.map((s) => {
 					return s.title;
 				}),
-				voice: filter_find.voice.map((v) => {
+				voice: filterFound.voice.map((v) => {
 					return v.title;
 				})
 			}, this.getChoice());
@@ -924,14 +890,6 @@
 			Lampa.Arrays.extend(destinationChoice, choice, true);
 			this.saveChoice(destinationChoice, targetBalancer);
 		};
-		this.clearImages = function () {
-			images.forEach((img) => {
-				img.onerror = function () { };
-				img.onload = function () { };
-				img.src = '';
-			});
-			images = [];
-		};
 		/**
 		 * Очистить список файлов
 		 */
@@ -939,7 +897,7 @@
 			lastFocusTarget = false;
 			clearInterval(balancer_timer);
 			network.clear();
-			this.clearImages();
+			images.length = 0;
 			scroll.render().find('.empty').remove();
 			scroll.clear();
 			scroll.reset();
@@ -960,16 +918,16 @@
 		/**
 		 * Построить фильтр
 		 */
-		this.filter = function (filter_items, choice) {
-			let select = [];
+		this.filter = function (filterItems, choice) {
+			let selection = [];
 
 			let add = (type, title) => {
 				let need = this.getChoice();
-				let items = filter_items[type];
-				let subitems = [];
 				let value = need[type];
 
-				items.forEach((name, i) => {
+				let fieldItems = filterItems[type];
+				let subitems = [];
+				fieldItems.forEach((name, i) => {
 					subitems.push({
 						title: name,
 						selected: value == i,
@@ -977,70 +935,78 @@
 					});
 				});
 
-				select.push({
+				selection.push({
 					title: title,
-					subtitle: items[value],
+					subtitle: fieldItems[value],
 					items: subitems,
 					stype: type
 				});
 			};
-			filter_items.source = filter_sources;
-			select.push({
+			filterItems.source = filterSources;
+			selection.push({
 				title: Lampa.Lang.translate('torrent_parser_reset'),
 				reset: true
 			});
 			this.saveChoice(choice);
 
-			if (filter_items.season && filter_items.season.length)
+			if (filterItems.season && filterItems.season.length)
 				add('season', Lampa.Lang.translate('torrent_serial_season'));
-			if (filter_items.voice && filter_items.voice.length)
+			if (filterItems.voice && filterItems.voice.length)
 				add('voice', Lampa.Lang.translate('torrent_parser_voice'));
 
-			filter.set('filter', select);
-			filter.set('sort', filter_sources.map((e) => {
+			filter.set('filter', selection);
+			filter.set('sort', filterSources.map((sourceName) => {
+				const source = sources[sourceName];
 				return {
-					title: sources[e].name,
-					source: e,
-					selected: e == activeBalancer,
-					ghost: !sources[e].show
+					title: source.name,
+					selected: sourceName == activeBalancer,
+					ghost: !source.show,
+					source: sourceName
 				};
 			}));
-			this.selected(filter_items);
+			this.showFilter(filterItems);
 		};
 		/**
-		 * Показать что выбрано в фильтре
-		 */
-		this.selected = function (filter_items) {
+		 * show filter selected items
+		 * @param {object} filterItems
+		 **/
+		this.showFilter = function (filterItems) {
 			let need = this.getChoice();
 			let select = [];
 
 			for (const i in need) {
-				if (filter_items[i] && filter_items[i].length) {
+				if (filterItems[i] && filterItems[i].length) {
 					if (i == 'voice')
-						select.push(filterTranslation[i] + ': ' + filter_items[i][need[i]]);
-					else if (i !== 'source' && filter_items.season.length >= 1)
-						select.push(filterTranslation.season + ': ' + filter_items[i][need[i]]);
+						select.push(filterTranslation[i] + ': ' + filterItems[i][need[i]]);
+					else if (i !== 'source' && filterItems.season.length >= 1)
+						select.push(filterTranslation.season + ': ' + filterItems[i][need[i]]);
 				}
 			}
 
 			filter.chosen('filter', select);
 			filter.chosen('sort', [sources[activeBalancer].name]);
 		};
-		this.getEpisodes = function (season, call) {
+		/**
+		 * request info about episodes of the current series season from an online database (e.g. TMDB)
+		 * @param {number} season
+		 * @param {function} callback
+		 **/
+		this.requestEpisodes = function (season, callback) {
 			let episodes = [];
-
 			if (typeof object.movie.id == 'number' && object.movie.name) {
 				const tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
-				network.timeout(10_000);
+				network.timeout(15_000);
 				network.native(tmdbUrl, (response) => {
 					episodes = response["episodes"] || [];
-					call(episodes);
+					callback(episodes);
 				}, (a, c) => {
-					call(episodes);
+					// @todo: dont call same callback on failure
+					callback(episodes);
 				});
 			}
 			else
-				call(episodes);
+				// @todo: dont call same callback on failure
+				callback(episodes);
 		};
 		this.getWatchedPrefs = function () {
 			let videoId = Lampa.Utils.hash(object.movie.number_of_seasons ? object.movie.original_name : object.movie.original_title);
@@ -1078,22 +1044,27 @@
 				body.append('<span>' + Lampa.Lang.translate('qwatch_no_watch_history') + '</span>');
 		};
 		/**
-		 * video list draw
+		 * video list render
 		 * @param {object[]} videos
+		 * @param {?object<function>} callbacks
 		 **/
-		this.draw = function (videos) {
-			let callbacks = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+		this.draw = function (videos, callbacks) {
+			callbacks = callbacks || {};
 			if (!videos.length)
 				return this.showEmptyPage();
 
 			scroll.clear();
 			if (!object.balancer)
 				scroll.append(Lampa.Template.get('qwatch_page_watched', {}));
-
 			this.updateWatched();
-			this.getEpisodes(videos[0].season, (episodes) => {
+			
+			/*
+			 * @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
+			 * to fix that we can make request to "https://api.themoviedb.org/3/tv/{series_id}" and use "number_of_seasons" from there
+			 */
+			this.requestEpisodes(videos[0].season, (episodes) => {
 				let viewList = Lampa.Storage.cache('online_view', 5000, []);
-				let isSeries = object.movie.name ? true : false;
+				let isSeries = object.movie.name ? true : false; // @test: this probably always true since we do
 				let choice = this.getChoice();
 
 				let isFullWidth = window.innerWidth > 480;
@@ -1101,23 +1072,22 @@
 				let scrollToMark = false;
 
 				// @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
-
 				const maxEpisodeNumberLength = videos.length.toString().length;
 				videos.forEach((video, index) => {
 					let episode = isSeries && episodes.length && !callbacks.similars ? episodes.find((e) => {
 						return e.episode_number == video.episode;
 					}) : false;
-					let episodeCount = video.episode || index + 1;
+					let episodeNumber = video.episode || index + 1;
 					let episodeLastWatched = choice.episodes_view[video.season];
-					let voice_name = choice.voice_name || (filter_find.voice[0] ? filter_find.voice[0].title : false) || video.voice_name || (isSeries ? 'Неизвестно' : video.text) || 'Неизвестно';
+					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : false) || video.voice_name || (isSeries ? 'Неизвестно' : video.text) || 'Неизвестно';
 					if (video.quality) {
 						video.qualities = video.quality;
 						video.quality = Lampa.Arrays.getKeys(video.quality)[0];
 					}
 
 					Lampa.Arrays.extend(video, {
-						voice_name: voice_name,
-						details: voice_name.length > 60 ? voice_name.substr(0, 60) + '...' : voice_name,
+						voice_name: voiceName,
+						details: voiceName.length > 60 ? voiceName.substr(0, 60) + '...' : voiceName,
 						quality: '',
 						time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true)
 					});
@@ -1168,7 +1138,7 @@
 							scrollToElement = html;
 					}
 					// check if the whole season is watched
-					else if (episodeLastWatched !== undefined && episodeLastWatched == episodeCount)
+					else if (episodeLastWatched !== undefined && episodeLastWatched == episodeNumber)
 						scrollToElement = html;
 
 					if (isSeries && !episode) {
@@ -1200,7 +1170,7 @@
 
 					video.markWatched = () => {
 						// @note: 'online_view' is internal variable that affects other aspects
-						// @todo: we must still set even if hash exists (for series), also it would be good to max out the timeline
+						// @todo: max out the timeline
 						viewList = Lampa.Storage.cache('online_view', 5000, []);
 						if (viewList.indexOf(hashFile) == -1) {
 							viewList.push(hashFile);
@@ -1213,7 +1183,7 @@
 						if (!isSeries)
 							choice.movie_view = hashFile;
 						else
-							choice.episodes_view[video.season] = episodeCount;
+							choice.episodes_view[video.season] = episodeNumber;
 						this.saveChoice(choice);
 
 						let voice_name_text = (choice.voice_name || video.voice_name || video.title);
@@ -1282,6 +1252,10 @@
 
 				// append ongoing episodes
 				// @todo: process those within released ones
+				/*
+				 * @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
+				 * to fix that we can make request to "https://api.themoviedb.org/3/tv/{series_id}" and use "next_episode_to_air" from there
+				 */
 				if (isSeries && episodes.length > videos.length && !callbacks.similars) {
 					let left = episodes.slice(videos.length);
 					left.forEach((episode) => {
@@ -1382,15 +1356,15 @@
 					});
 					menu.push({
 						title: Lampa.Lang.translate('torrent_parser_label_title'),
-						mark: true
+						onSelect: params.element.markWatched
 					});
 					menu.push({
 						title: Lampa.Lang.translate('torrent_parser_label_cancel_title'),
-						unmark: true
+						onSelect: params.element.unmarkWatched
 					});
 					menu.push({
 						title: Lampa.Lang.translate('time_reset'),
-						timeclear: true
+						onSelect: params.element.timeclear
 					});
 					if (extra) {
 						menu.push({
@@ -1404,81 +1378,10 @@
 						title: Lampa.Lang.translate('more'),
 						separator: true
 					});
-					if (Lampa.Account.logged() && params.element && params.element.season !== undefined && params.element.translate_voice) {
+					if (Lampa.Account.logged() && params.element.season !== undefined && params.element.translate_voice) {
 						menu.push({
 							title: Lampa.Lang.translate('qwatch_voice_subscribe'),
-							subscribe: true
-						});
-					}
-					menu.push({
-						title: Lampa.Lang.translate('qwatch_clear_all_marks'),
-						clearallmark: true
-					});
-					menu.push({
-						title: Lampa.Lang.translate('qwatch_clear_all_timecodes'),
-						timeclearall: true
-					});
-
-					let enabled = Lampa.Controller.enabled().name;
-					Lampa.Select.show({
-						title: Lampa.Lang.translate('title_action'),
-						items: menu,
-						onBack: () => {
-							Lampa.Controller.toggle(enabled);
-						},
-						onSelect: (a) => {
-							// process entries callbacks @todo: better to rework this
-							if (a.mark) params.element.markWatched();
-							if (a.unmark) params.element.unmarkWatched();
-							if (a.timeclear) params.element.timeclear();
-							if (a.clearallmark) params.onClearAllMark();
-							if (a.timeclearall) params.onClearAllTime();
-
-							if (window.qwatch_online_context_menu)
-								window.qwatch_online_context_menu.onSelect(a, params);
-
-							Lampa.Controller.toggle(enabled);
-
-							if (a.player) {
-								Lampa.Player.runas(a.player);
-								params.html.trigger('hover:enter');
-							}
-
-							if (a.copylink) {
-								if (extra.quality) {
-									let qualities = [];
-									for (let key in extra.quality) {
-										qualities.push({
-											title: key,
-											file: extra.quality[key]
-										});
-									}
-
-									Lampa.Select.show({
-										title: Lampa.Lang.translate('settings_server_links'),
-										items: qualities,
-										onBack: () => {
-											Lampa.Controller.toggle(enabled);
-										},
-										onSelect: (b) => {
-											Lampa.Utils.copyTextToClipboard(b.file, () => {
-												Lampa.Noty.show(Lampa.Lang.translate('copy_secuses'));
-											}, () => {
-												Lampa.Noty.show(Lampa.Lang.translate('copy_error'));
-											});
-										}
-									});
-								}
-								else {
-									Lampa.Utils.copyTextToClipboard(extra.file, () => {
-										Lampa.Noty.show(Lampa.Lang.translate('copy_secuses'));
-									}, () => {
-										Lampa.Noty.show(Lampa.Lang.translate('copy_error'));
-									});
-								}
-							}
-
-							if (a.subscribe) {
+							onSelect: () => {
 								Lampa.Account.subscribeToTranslation({
 									card: object.movie,
 									season: params.element.season,
@@ -1489,6 +1392,39 @@
 								}, () => {
 									Lampa.Noty.show(Lampa.Lang.translate('qwatch_voice_error'));
 								});
+							}
+						});
+					}
+					menu.push({
+						title: Lampa.Lang.translate('qwatch_clear_all_marks'),
+						onSelect: params.onClearAllMark
+					});
+					menu.push({
+						title: Lampa.Lang.translate('qwatch_clear_all_timecodes'),
+						onSelect: params.onClearAllTime
+					});
+
+					const controllerName = Lampa.Controller.enabled().name;
+					Lampa.Select.show({
+						title: Lampa.Lang.translate('title_action'),
+						items: menu,
+						onBack: () => {
+							Lampa.Controller.toggle(controllerName);
+						},
+						onSelect: (item) => {
+							// @test: unused
+							if (window.qwatch_online_context_menu)
+								window.qwatch_online_context_menu.onSelect(item, params);
+
+							// process items callbacks
+							if (item.onSelect)
+								item.onSelect();
+
+							Lampa.Controller.toggle(controllerName);
+
+							if (item.player) {
+								Lampa.Player.runas(item.player);
+								params.html.trigger('hover:enter');
 							}
 						}
 					});
@@ -1600,21 +1536,13 @@
 					else
 						Lampa.Controller.toggle('menu');
 				},
-				back: this.back.bind(this)
+				back: Lampa.Activity.backward
 			});
 			Lampa.Controller.toggle('content');
 		};
-		this.render = function () {
-			return explorer.render();
-		};
-		this.back = function () {
-			Lampa.Activity.backward();
-		};
-		this.pause = function () { };
-		this.stop = function () { };
 		this.destroy = function () {
 			network.clear();
-			this.clearImages();
+			images.length = 0;
 			explorer.destroy();
 			scroll.destroy();
 			clearInterval(balancer_timer);
@@ -1653,7 +1581,7 @@
 											if (item.img.charAt(0) === '/')
 												item.img = hostAddress + item.img.substring(1);
 											if (item.img.indexOf('/proxyimg') !== -1)
-												item.img = account(item.img);
+												item.img = addAccountParams(item.img);
 										}
 
 										return item;
@@ -1670,7 +1598,7 @@
 						}
 
 						keys.forEach((name) => {
-							network.silent(account(links[name]), (response) => {
+							network.silent(links[name], (response) => {
 								status.append(name, response);
 							}, () => {
 								status.error();
@@ -1681,10 +1609,10 @@
 						onComplete([]);
 				}
 
-				network.silent(account(hostAddress + 'lite/' + spiderUri + '?title=' + params.query), (response) => {
+				network.silent(hostAddress + 'lite/' + spiderUri + '?title=' + params.query, (response) => {
 					if (response.rch) {
 						rchRun(response, () => {
-							network.silent(account(hostAddress + 'lite/' + spiderUri + '?title=' + params.query), (links) => {
+							network.silent(hostAddress + 'lite/' + spiderUri + '?title=' + params.query, (links) => {
 								searchComplite(links);
 							}, () => {
 								onComplete([]);
@@ -1838,7 +1766,7 @@
 			'.qwatch-item__watched{position:absolute;top:1em;left:1em;background:rgba(0,0,0,0.45);-webkit-border-radius:100%;border-radius:100%;padding:.25em;font-size:.76em}' +
 			'.qwatch-item__watched>svg{width:1.5em !important;height:1.5em !important}' +
 			'.qwatch-item__episode-number{position:absolute;top:0;left:0;right:0;bottom:0;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-box-pack:center;-webkit-justify-content:center;-moz-box-pack:center;-ms-flex-pack:center;justify-content:center;font-size:2em;font-weight:600}' +
-			'.qwatch-item__episode-number>span{background-color:rgba(33,31,27,0.7);-webkit-border-radius:5px;-moz-border-radius:5px;border-radius:5px;padding:.1em .2em .1em .2em;}' +
+			'.qwatch-item__episode-number>span{background-color:rgba(33,31,27,0.7);-webkit-border-radius:.2em;-moz-border-radius:.2em;border-radius:.2em;padding:.2em;}' +
 			'.qwatch__loader{position:absolute;top:50%;left:50%;width:2em;height:2em;margin-left:-1em;margin-top:-1em;background:url(./img/loader.svg) no-repeat center center;-webkit-background-size:contain;-o-background-size:contain;background-size:contain}' +
 			'.qwatch-item__head,.qwatch-item__footer{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-pack:justify;-webkit-justify-content:space-between;-moz-box-pack:justify;-ms-flex-pack:justify;justify-content:space-between;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
 			'.qwatch-item__timeline{margin:.8em 0}' +
@@ -1882,13 +1810,13 @@
 				return;
 
 			// render button
-			var onlineButton = $(Lampa.Lang.translate(
+			let onlineButton = $(Lampa.Lang.translate(
 				'<div class="full-start__button selector view--qwatch" data-subtitle="' + manifest.name + ' ' + manifest.version + '">' +
 				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="currentColor" fill-rule="evenodd" d="M3.07 6a8.025 8.025 0 014.262-3.544A12.802 12.802 0 005.595 6H3.07zm-.818 2A8.015 8.015 0 002 10c0 .69.088 1.36.252 2h2.89A13.886 13.886 0 015 10c0-.704.051-1.371.143-2H2.252zm4.916 0C7.06 8.62 7 9.286 7 10c0 .713.061 1.38.168 2h5.664c.107-.62.168-1.287.168-2 0-.714-.061-1.38-.168-2H7.168zm7.69 0c.09.629.142 1.296.142 2s-.051 1.371-.143 2h2.891c.165-.64.252-1.31.252-2s-.087-1.36-.252-2h-2.89zm2.072-2h-2.525a12.805 12.805 0 00-1.737-3.544A8.025 8.025 0 0116.93 6zm-4.638 0H7.708c.324-.865.725-1.596 1.124-2.195.422-.633.842-1.117 1.168-1.452.326.335.746.82 1.168 1.452.4.599.8 1.33 1.124 2.195zm-1.124 10.195c.4-.599.8-1.33 1.124-2.195H7.708c.324.865.725 1.596 1.124 2.195.422.633.842 1.117 1.168 1.452.326-.335.746-.82 1.168-1.452zM3.07 14h2.525a12.802 12.802 0 001.737 3.544A8.025 8.025 0 013.07 14zm9.762 3.305a12.9 12.9 0 01-.164.24A8.025 8.025 0 0016.93 14h-2.525a12.805 12.805 0 01-1.573 3.305zM20 10c0 5.52-4.472 9.994-9.99 10h-.022C4.47 19.994 0 15.519 0 10 0 4.477 4.477 0 10 0s10 4.477 10 10z"/></svg>' +
 				'<span>#{qwatch_title}</span>' +
 				'</div>'));
-			var render = event.object.activity.render();
-			var torrentButton = render.find('.view--torrent');
+			let render = event.object.activity.render();
+			let torrentButton = render.find('.view--torrent');
 			if (torrentButton.length)
 				torrentButton.before(onlineButton);
 			else
@@ -1988,16 +1916,16 @@
 				Lampa.Component.add('qwatch', QWatchComponent);
 
 				// register activity
-				let movieId = Lampa.Utils.hash(event.data.movie.number_of_seasons ? event.data.movie.original_name : event.data.movie.original_title);
-				let all = Lampa.Storage.get('clarification_search', '{}');
+				let clarificationName = clarificationSearchGet(event.data.movie);
 				Lampa.Activity.push({
 					url: '',
 					title: Lampa.Lang.translate('qwatch_title'),
 					component: 'qwatch',
-					search: all[movieId] ? all[movieId] : event.data.movie.title,
 					movie: event.data.movie,
 					page: 1,
-					clarification: all[movieId] ? true : false
+					// @todo: probably better to move those inside component
+					search: clarificationName ? clarificationName : event.data.movie.title,
+					clarification: clarificationName ? true : false
 				});
 			});
 		});
