@@ -1140,7 +1140,7 @@
 						details.push(object.movie.tagline);
 					if (element.details)
 						details.push(element.details);
-					element.details = rating.join + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
+					element.details = rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
 
 					let html = Lampa.Template.get('qwatch_page_full', element);
 					let loader = html.find('.qwatch__loader');
