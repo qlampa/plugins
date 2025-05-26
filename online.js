@@ -690,6 +690,7 @@
 					}, true);
 				}
 			});
+
 			this.filter({
 				season: filterFound.season.map((s) => {
 					return s.title;
@@ -1163,6 +1164,8 @@
 					}
 
 					html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(video.timeline));
+					html.find('.qwatch-item__timeline').append(Lampa.Timeline.details(element.timeline)); // @test: just to check
+
 					if (viewList.indexOf(hashFile) !== -1) {
 						scrollToMark = html;
 						html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
@@ -1423,6 +1426,7 @@
 							Lampa.Controller.toggle(controllerName);
 
 							if (item.player) {
+								// @todo: continue from the last timeline
 								Lampa.Player.runas(item.player);
 								params.html.trigger('hover:enter');
 							}
