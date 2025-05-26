@@ -1140,7 +1140,7 @@
 						details.push(object.movie.tagline);
 					if (element.details)
 						details.push(element.details);
-					element.details = rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
+					element.details = rating.join + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
 
 					let html = Lampa.Template.get('qwatch_page_full', element);
 					let loader = html.find('.qwatch__loader');
@@ -1816,7 +1816,7 @@
 			'.qwatch-watched__icon>svg{width:1.5em;height:1.5em}' +
 			'.qwatch-watched__body{padding-left:1em;padding-top:.1em;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap}' +
 			'.qwatch-watched__body>span+span::before{content:\' ● \';vertical-align:top;display:inline-block;margin:0 .5em}' +
-			'.qwatch-item__rating{display:-webkit-inline-box;display:-webkit-inline-flex;display:-moz-inline-box;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
+			'.qwatch-item__rating{display:-webkit-inline-box;display:-webkit-inline-flex;display:-moz-inline-box;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;margin-right:.5em}' +
 			'.qwatch-item__rating>svg{width:1.2em;height:1.2em}' +
 			'.qwatch-item__rating>span{font-weight:600;padding-left:.25em}' +
 			'.qwatch-empty{line-height:1.4}' +
