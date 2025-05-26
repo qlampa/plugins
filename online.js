@@ -1162,23 +1162,33 @@
 					}
 
 					html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(video.timeline));
-					html.find('.qwatch-item__timeline').append(Lampa.Timeline.details(element.timeline)); // @test: just to check
+					html.find('.qwatch-item__timeline').append(Lampa.Timeline.details(video.timeline)); // @test: just to check
 
 					if (viewList.indexOf(hashFile) !== -1) {
 						scrollToMark = html;
 						html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 					}
 
+					video.clearTimeline = () => {
+						video.timeline.percent = 0;
+						video.timeline.time = 0;
+						video.timeline.duration = 0;
+						Lampa.Timeline.update(video.timeline);
+					};
 					video.markWatched = () => {
 						// @note: 'online_view' is internal variable that affects other aspects
-						// @todo: max out the timeline
 						viewList = Lampa.Storage.cache('online_view', 5000, []);
 						if (viewList.indexOf(hashFile) == -1) {
 							viewList.push(hashFile);
 							Lampa.Storage.set('online_view', viewList);
+							
 							if (html.find('.qwatch-item__watched').length == 0)
 								html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 						}
+
+						// max out the timeline
+						video.timeline.percent = 100;
+						Lampa.Timeline.update(video.timeline);
 
 						choice = this.getChoice();
 						if (!isSeries)
@@ -1205,17 +1215,11 @@
 						viewList = Lampa.Storage.cache('online_view', 5000, []);
 						if (viewList.indexOf(hashFile) !== -1) {
 							Lampa.Arrays.remove(viewList, hashFile);
-							Lampa.Storage.set('online_view', viewList); // @test: do we need to set if we gonna remove it anyway? | debug it
 							Lampa.Storage.remove('online_view', hashFile);
 
 							html.find('.qwatch-item__watched').remove();
+							video.clearTimeline();
 						}
-					};
-					video.timeclear = () => {
-						video.timeline.percent = 0;
-						video.timeline.time = 0;
-						video.timeline.duration = 0;
-						Lampa.Timeline.update(video.timeline);
 					};
 
 					html.on('hover:enter', () => {
