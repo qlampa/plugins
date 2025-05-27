@@ -1849,7 +1849,7 @@
 			onlineButton.on('hover:enter', () => {
 				// register templates
 				Lampa.Template.add('qwatch_page_full', 
-				'<div class="qwatch-item selector">' +
+				'<div class="torrent-item torrent-item--qwatch selector">' +
 					'<div class="qwatch-item__img">' +
 						'<img alt="">' +
 						'<div class="qwatch__loader"/>' +
