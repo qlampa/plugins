@@ -2,7 +2,7 @@
 	'use strict';
 
 	const hostAddress = 'http://smotret24.ru/';
-	const balancersList = [
+	const providersList = [
 		'alloha', 'anilibria', 'animebesst',
 		'animedia', 'animego', 'animelib',
 		'animevost', 'ashdi', 'autoembed',
@@ -166,7 +166,7 @@
 			voice: []
 		};
 
-		function getBalancerName(entryJson) {
+		function getProviderName(entryJson) {
 			return (entryJson["balanser"] || entryJson["name"].split(' ')[0]).toLowerCase();
 		}
 
@@ -178,7 +178,7 @@
 					noReset();
 			});
 		};
-		this.externalids = function () {
+		this.requestExternalIds = function () {
 			return new Promise((resolve, reject) => {
 				if (!object.movie.imdb_id || !object.movie.kinopoisk_id) {
 					let query = [];
@@ -201,21 +201,21 @@
 					resolve();
 			});
 		};
-		this.updateBalancer = function (balancerName) {
-			providersLast[object.movie.id] = balancerName;
+		this.updateProvider = function (providerName) {
+			providersLast[object.movie.id] = providerName;
 			Lampa.Storage.set('online_last_balanser', providersLast);
 		};
-		this.changeBalancer = function (balancerName) {
-			this.updateBalancer(balancerName);
-			Lampa.Storage.set('online_balanser', balancerName);
-			let newChoice = this.getChoice(balancerName);
+		this.changeProvider = function (providerName) {
+			this.updateProvider(providerName);
+			Lampa.Storage.set('online_balanser', providerName);
+			let newChoice = this.getChoice(providerName);
 			let lastChoice = this.getChoice();
 			if (lastChoice.voice_name)
 				newChoice.voice_name = lastChoice.voice_name;
-			this.saveChoice(newChoice, balancerName);
+			this.saveChoice(newChoice, providerName);
 			Lampa.Activity.replace();
 		};
-		this.addRequestParams = function (url) {
+		this.addLampacParams = function (url) {
 			let query = [];
 
 			query.push('id=' + object.movie.id);
@@ -228,17 +228,17 @@
 			query.push('serial=' + (object.movie.name ? 1 : 0));
 			query.push('original_language=' + (object.movie.original_language || ''));
 			query.push('year=' + ((object.movie.release_date || object.movie.first_air_date || '0000') + '').slice(0, 4));
-			query.push('source=' + (object.movie.source || 'tmdb')); //Lampa.Storage.field('source')
-			query.push('rchtype=' + (window.rch ? window.rch.type : ''));
+			query.push('source=' + (object.movie.source || 'tmdb'));
 			query.push('clarification=' + (object.clarification ? 1 : 0));
-			query.push('similar=' + (object.similar ? true : false));
 			const accountEmail = Lampa.Storage.get('account_email', '');
-			if (accountEmail)
+			if (accountEmail.length > 0)
 				query.push('cub_id=' + Lampa.Utils.hash(accountEmail));
+			query.push('rchtype=' + (window.rch ? window.rch.type : ''));
+			query.push('similar=' + (object.similar ? true : false));
 
 			return url + (url.indexOf('?') >= 0 ? '&' : '?') + query.join('&');
 		};
-		this.getLastChoiceBalancer = function () {
+		this.getLastChoiceProvider = function () {
 			if (providersLast[object.movie.id])
 				return providersLast[object.movie.id];
 			else
@@ -247,7 +247,7 @@
 		this.startSource = function (sourcesJson) {
 			return new Promise((resolve, reject) => {
 				for (const source of sourcesJson) {
-					const sourceName = getBalancerName(source);
+					const sourceName = getProviderName(source);
 					providersAlive[sourceName] = {
 						url: source.url,
 						name: source.name,
@@ -274,16 +274,16 @@
 		};
 		this.lifeSource = function () {
 			return new Promise((resolve, reject) => {
-				let url = this.addRequestParams(hostAddress + 'lifeevents?memkey=' + (this.memkey || ''));
+				let url = this.addLampacParams(hostAddress + 'lifeevents?memkey=' + (this.memkey || ''));
 				let red = false;
 				let gou = (targetJson, any) => {
-					if (targetJson['accsdb'])
+					if (targetJson["accsdb"])
 						return reject(targetJson);
 
-					let lastBalancer = this.getLastChoiceBalancer();
+					let lastProvider = this.getLastChoiceProvider();
 					if (!red) {
 						let _filter = targetJson.online.filter((c) => {
-							return (any ? c.show : (c.show && c.name.toLowerCase() == lastBalancer));
+							return (any ? c.show : (c.show && c.name.toLowerCase() == lastProvider));
 						});
 
 						if (_filter.length) {
@@ -303,8 +303,8 @@
 					filterSources = [];
 					providersAlive = {};
 					lifeSourcesJson.online.forEach((entry) => {
-						let sourceName = getBalancerName(entry);
-						providersAlive[sourceName] = {
+						const providerName = getProviderName(entry);
+						providersAlive[providerName] = {
 							url: entry.url,
 							name: entry.name,
 							show: entry.show === undefined ? true : entry.show
@@ -321,12 +321,12 @@
 					}));
 					filter.chosen('sort', [providersAlive[providerActive] ? providersAlive[providerActive].name : providerActive]);
 					gou(lifeSourcesJson);
-					let lastBalancer = this.getLastChoiceBalancer();
+					let lastProvider = this.getLastChoiceProvider();
 					if (life_wait_times > 15 || lifeSourcesJson.ready) {
-						filter.render().find('.qwatch-balancer-loader').remove();
+						filter.render().find('.qwatch-provider-loader').remove();
 						gou(lifeSourcesJson, true);
 					}
-					else if (!red && providersAlive[lastBalancer] && providersAlive[lastBalancer].show) {
+					else if (!red && providersAlive[lastProvider] && providersAlive[lastProvider].show) {
 						gou(lifeSourcesJson, true);
 						life_wait_timer = setTimeout(fin, 1000);
 					}
@@ -344,7 +344,7 @@
 		this.createSource = function () {
 			return new Promise((resolve, reject) => {
 				network.timeout(15_000);
-				network.silent(this.addRequestParams(hostAddress + 'lite/events?life=true'), (targetJson) => {
+				network.silent(this.addLampacParams(hostAddress + 'lite/events?life=true'), (targetJson) => {
 					if (targetJson["accsdb"])
 						return reject(targetJson);
 
@@ -356,7 +356,7 @@
 							if (object.movie.title)
 								object.movie.title = targetJson.title;
 						}
-						filter.render().find('.filter--sort').append('<span class="qwatch-balancer-loader" style="width: 1.2em; height: 1.2em; margin-top: 0; background: url(./img/loader.svg) no-repeat 50% 50%; background-size: contain; margin-left: 0.5em"></span>');
+						filter.render().find('.filter--sort').append('<span class="qwatch-provider-loader" style="width: 1.2em; height: 1.2em; margin-top: 0; background: url(./img/loader.svg) no-repeat 50% 50%; background-size: contain; margin-left: 0.5em"></span>');
 						this.lifeSource().then(this.startSource).then(resolve).catch(reject);
 					}
 					else
@@ -422,12 +422,12 @@
 				else if (type == 'sort') {
 					Lampa.Select.close();
 					object.lampac_custom_select = a.source;
-					this.changeBalancer(a.source);
+					this.changeProvider(a.source);
 				}
 			};
 			if (filter.addButtonBack)
 				filter.addButtonBack();
-			filter.render().find('.filter--sort span').text(Lampa.Lang.translate('qwatch_balancer'));
+			filter.render().find('.filter--sort span').text(Lampa.Lang.translate('settings_rest_source'));
 			scroll.body().addClass('torrent-list');
 
 			explorer.appendHead(filter.render());
@@ -438,11 +438,11 @@
 			Lampa.Controller.enable('content');
 			this.setLoading(false);
 
-			if (object.balancer) {
+			if (object.provider) {
 				explorer.render().find('.filter--search').remove();
 				providersAlive = {};
-				providersAlive[object.balancer] = { name: object.balancer };
-				providerActive = object.balancer;
+				providersAlive[object.provider] = { name: object.provider };
+				providerActive = object.provider;
 				filterSources = [];
 
 				return network.native(object.url.replace('rjson=', 'nojson='), this.parse.bind(this), () => {
@@ -453,11 +453,11 @@
 				});
 			}
 
-			this.externalids().then(() => {
+			this.requestExternalIds().then(() => {
 				return this.createSource();
 			}).then((json) => {
-				if (!balancersList.find((balancer) => {
-					return providerActive.slice(0, balancer.length) == balancer;
+				if (!providersList.find((provider) => {
+					return providerActive.slice(0, provider.length) == provider;
 				})) {
 					filter.render().find('.filter--search').addClass('hide');
 				}
@@ -478,7 +478,7 @@
 			this.find();
 		};
 		this.find = function () {
-			this.request(this.addRequestParams(providerActiveUrl));
+			this.request(this.addLampacParams(providerActiveUrl));
 		};
 		this.request = function (url) {
 			number_of_requests++;
@@ -691,7 +691,7 @@
 							Lampa.Player.play(playData);
 							Lampa.Player.playlist(playlist);
 							video.markWatched();
-							this.updateBalancer(providerActive);
+							this.updateProvider(providerActive);
 						}
 						else
 							Lampa.Noty.show(Lampa.Lang.translate('qwatch_no_link'));
@@ -883,8 +883,8 @@
 			Lampa.Controller.enable('content');
 		};
 		// @todo: instead use 'online_filter'?
-		this.getChoice = function (targetBalancer) {
-			let choicesCache = Lampa.Storage.cache('online_choice_' + (targetBalancer || providerActive), 3000, {});
+		this.getChoice = function (provider) {
+			let choicesCache = Lampa.Storage.cache('online_choice_' + (provider || providerActive), 3000, {});
 			let choice = choicesCache[object.movie.id] || {};
 			Lampa.Arrays.extend(choice, {
 				season: 0,
@@ -896,16 +896,16 @@
 			});
 			return choice;
 		};
-		this.saveChoice = function (choice, targetBalancer) {
-			let choicesCache = Lampa.Storage.cache('online_choice_' + (targetBalancer || providerActive), 3000, {});
+		this.saveChoice = function (choice, provider) {
+			let choicesCache = Lampa.Storage.cache('online_choice_' + (provider || providerActive), 3000, {});
 			choicesCache[object.movie.id] = choice;
-			Lampa.Storage.set('online_choice_' + (targetBalancer || providerActive), choicesCache);
-			this.updateBalancer(targetBalancer || providerActive);
+			Lampa.Storage.set('online_choice_' + (provider || providerActive), choicesCache);
+			this.updateProvider(provider || providerActive);
 		};
-		this.replaceChoice = function (choice, targetBalancer) {
-			let destinationChoice = this.getChoice(targetBalancer);
+		this.replaceChoice = function (choice, provider) {
+			let destinationChoice = this.getChoice(provider);
 			Lampa.Arrays.extend(destinationChoice, choice, true);
-			this.saveChoice(destinationChoice, targetBalancer);
+			this.saveChoice(destinationChoice, provider);
 		};
 		/**
 		 * Очистить список файлов
@@ -1044,8 +1044,8 @@
 			let body = scroll.body().find('.qwatch-watched .qwatch-watched__body').empty();
 			if (watchedPrefs) {
 				let lines = [];
-				if (watchedPrefs.balancer_name)
-					lines.push(watchedPrefs.balancer_name);
+				if (watchedPrefs.provider_name)
+					lines.push(watchedPrefs.provider_name);
 				if (watchedPrefs.voice_name)
 					lines.push(watchedPrefs.voice_name);
 				if (watchedPrefs.season)
@@ -1071,7 +1071,7 @@
 				return this.showEmptyPage();
 
 			scroll.clear();
-			if (!object.balancer)
+			if (!object.provider)
 				scroll.append(Lampa.Template.get('qwatch_page_watched', {}));
 			this.updateWatched();
 			
@@ -1145,7 +1145,7 @@
 					let html = Lampa.Template.get('qwatch_page_full', element);
 					let loader = html.find('.qwatch__loader');
 					let image = html.find('.qwatch-item__img');
-					if (object.balancer)
+					if (object.provider)
 						image.hide();
 
 					if (!isSeries) {
@@ -1223,8 +1223,8 @@
 							voice_name_text = voice_name_text.slice(0, 32) + '...';
 
 						this.setWatchedPrefs({
-							balancer: providerActive,
-							balancer_name: Lampa.Utils.capitalizeFirstLetter(providersAlive[providerActive] ? providersAlive[providerActive].name.split(' ')[0] : providerActive),
+							provider: providerActive,
+							provider_name: Lampa.Utils.capitalizeFirstLetter(providersAlive[providerActive] ? providersAlive[providerActive].name.split(' ')[0] : providerActive),
 							voice_id: choice.voice_id,
 							voice_name: voice_name_text,
 							episode: element.episode,
@@ -1479,7 +1479,7 @@
 			this.reset();
 
 			let html = Lampa.Template.get('qwatch_page_no_answer', {
-				balancer: providerActive
+				provider: providerActive
 			});
 
 			if (err && err["accsdb"])
@@ -1508,7 +1508,7 @@
 						next = keys[0];
 					providerActive = next;
 					if (Lampa.Activity.active().activity == this.activity)
-						this.changeBalancer(providerActive);
+						this.changeProvider(providerActive);
 				}
 			}, 1000);
 		};
@@ -1607,7 +1607,7 @@
 									let cards = line.data.map((item) => {
 										item.title = Lampa.Utils.capitalizeFirstLetter(item.title);
 										item.release_date = item.year || '0000';
-										item.balancer = spiderUri;
+										item.provider = spiderUri;
 										if (item.img !== undefined) {
 											if (item.img.charAt(0) === '/')
 												item.img = hostAddress + item.img.substring(1);
@@ -1680,7 +1680,7 @@
 					page: 1,
 					search: params.element.title,
 					clarification: true,
-					balancer: params.element.balancer,
+					provider: params.element.provider,
 					noinfo: true
 				});
 			}
@@ -1725,12 +1725,6 @@
 				uk: 'Неможливо отримати посилання',
 				en: 'Failed to fetch link',
 				zh: '获取链接失败'
-			},
-			qwatch_balancer: {
-				ru: 'Источник',
-				uk: 'Джерело',
-				en: 'Source',
-				zh: '来源'
 			},
 			qwatch_voice_subscribe: {
 				ru: 'Подписаться на перевод',
@@ -1786,7 +1780,8 @@
 		Lampa.Template.add('qwatch_css',
 			'<style>' +
 			'@charset \'UTF-8\';' +
-			'.qwatch-item{position:relative;-webkit-border-radius:.3em;border-radius:.3em;background-color:rgba(0,0,0,0.3);display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}' +
+			'.torrent-item--qwatch{padding:unset !important;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}' +
+			'.torrent-item--qwatch .qwatch-split{font-size:.8em;margin:0 .5em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
 			'.qwatch-item__body{padding:1.2em;line-height:1.3;-webkit-box-flex:1;-webkit-flex-grow:1;-moz-box-flex:1;-ms-flex-positive:1;flex-grow:1;position:relative}' +
 			'@media screen and (max-width:480px){.qwatch-item__body{padding:.8em 1.2em}}' +
 			'.qwatch-item__img{position:relative;width:13em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0;min-height:8.2em}' +
@@ -1802,15 +1797,12 @@
 			'.qwatch-item__head,.qwatch-item__footer{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-pack:justify;-webkit-justify-content:space-between;-moz-box-pack:justify;-ms-flex-pack:justify;justify-content:space-between;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
 			'.qwatch-item__timeline{margin:.8em 0}' +
 			'.qwatch-item__timeline>.time-line{display:block !important}' +
-			'.qwatch-item__title{font-size:1.7em;overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
+			'.qwatch-item__title{font-size:1.6em;overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
 			'@media screen and (max-width:480px){.qwatch-item__title{font-size:1.4em}}' +
 			'.qwatch-item__time{padding-left:2em}' +
 			'.qwatch-item__details{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
 			'.qwatch-item__details>span{overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
 			'.qwatch-item__quality{padding-left:1em;white-space:nowrap}' +
-			'.qwatch-item .qwatch-split{font-size:.8em;margin:0 .5em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
-			'.qwatch-item.focus::after{content:\'\';position:absolute;top:-0.6em;left:-0.6em;right:-0.6em;bottom:-0.6em;-webkit-border-radius:.7em;border-radius:.7em;border:solid .3em #fff;z-index:-1;pointer-events:none}' +
-			'.qwatch-item+.qwatch-item{margin-top:1.5em}' +
 			'.qwatch-item--folder .qwatch-item__footer{margin-top:.8em}' +
 			'.qwatch-watched{padding:1em}' +
 			'.qwatch-watched__icon>svg{width:1.5em;height:1.5em}' +
@@ -1831,7 +1823,7 @@
 			'.qwatch-empty-skeleton{background-color:rgba(255,255,255,0.3);padding:1em;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-border-radius:.3em;border-radius:.3em}' +
 			'.qwatch-empty-skeleton>*{background:rgba(0,0,0,0.3);-webkit-border-radius:.3em;border-radius:.3em}' +
 			'.qwatch-empty-skeleton__ico{width:4em;height:4em;margin-right:2.4em}' +
-			'.qwatch-empty-skeleton__body{height:1.7em;width:70%}' +
+			'.qwatch-empty-skeleton__body{height:1.6em;width:70%}' +
 			'.qwatch-empty-skeleton+.qwatch-empty-skeleton{margin-top:1em}' +
 			'</style>');
 		$('body').append(Lampa.Template.get('qwatch_css', {}, true));
@@ -1921,7 +1913,7 @@
 						'<span>{rate}</span>' +
 					'</div>');
 				Lampa.Template.add('qwatch_page_folder', 
-					'<div class="qwatch-item qwatch-item--folder selector">' +
+					'<div class="torrent-item torrent-item--qwatch qwatch-item--folder selector">' +
 						'<div class="qwatch-item__folder">' +
 							'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 112" fill="currentColor"><rect y="20" width="128" height="92" rx="13"/><path d="M29.9963 8H98.0037C96.0446 3.3021 91.4079 0 86 0H42C36.5921 0 31.9555 3.3021 29.9963 8Z" fill-opacity="0.23"/><rect x="11" y="8" width="106" height="76" rx="13" fill-opacity="0.51"/></svg>' +
 						'</div>' +
@@ -1936,7 +1928,7 @@
 						'</div>' +
 					'</div>');
 				Lampa.Template.add('qwatch_page_watched', 
-					'<div class="qwatch-item qwatch-watched selector">' +
+					'<div class="torrent-item torrent-item--qwatch qwatch-watched selector">' +
 						'<div class="qwatch-watched__icon">' +
 							'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor"><path d="M480-120q-138 0-240.5-91.5T122-440h82q14 104 92.5 172T480-200q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h110v80H120v-240h80v94q51-64 124.5-99T480-840q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm112-192L440-464v-216h80v184l128 128-56 56Z"/></svg>' +
 						'</div>' +
@@ -1962,9 +1954,9 @@
 		});
 
 		if (Lampa.Manifest.app_digital >= 177) {
-			for (const balancerName of balancersList) {
+			for (const providerName of providersList) {
 				// @todo: rename to prevent conflicts with other plugins
-				Lampa.Storage.sync('online_choice_' + balancerName, 'object_object');
+				Lampa.Storage.sync('online_choice_' + providerName, 'object_object');
 			}
 			Lampa.Storage.sync('online_watched_prefs', 'object_object');
 		}
