@@ -1043,21 +1043,27 @@
 												episode["episode_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["number"];
 												episode["season_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["seasonNumber"];
 											});
-										}, null, null, {
+										}, () => {
+											callback(episodes);
+										}, null, {
 											headers: {
 												'Accept': 'application/json',
 												'Authorization': 'Bearer ' + tvdbToken
 											}
 										});
 									}
-								}, null, JSON.stringify({
+								}, () => {
+									callback(episodes);
+								}, JSON.stringify({
 									apikey: tvdbApiKey
 								}));
 							}
+						}, () => {
+							callback(episodes);
 						});
 					}
-
-					callback(episodes);
+					else
+						callback(episodes);
 				});
 			}
 			else
