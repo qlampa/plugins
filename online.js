@@ -1038,7 +1038,7 @@
 								network.native(tvdbApiUrl + 'series/' + object.movie.tvdb_id + '/extended?meta=episodes&short=true', (tvdbResponse) => {
 									const tvdbEpisodes = tvdbResponse["data"]["episodes"];
 									const tvdbEpisodesOffset = tvdbEpisodes.find((episode) => {
-										return episode["season_number"] != 0;
+										return episode["season_number"] !== 0;
 									}) || 0;
 
 									// remap absolute episodes array
@@ -1176,7 +1176,8 @@
 			}*/
 			
 			// @note: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
-			this.requestEpisodes(videos[0].season, (episodes) => {
+			const seasonNumber = videos[0].season;
+			this.requestEpisodes(seasonNumber, (episodes) => {
 				let viewList = Lampa.Storage.cache('online_view', 5000, []);
 				let choice = this.getChoice();
 
@@ -1191,7 +1192,7 @@
 
 				videos.forEach((element, index) => {
 					let episode = object.method === 'tv' && episodes.length && !callbacks.similars ? episodes.find((e) => {
-						return e.episode_number == element.episode;
+						return e.episode_number == element.episode && e.season_number == seasonNumber;
 					}) : null;
 
 					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || element.voice_name || (object.method === 'tv' ? 'Неизвестно' : element.text) || 'Неизвестно';
