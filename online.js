@@ -1056,6 +1056,11 @@
 									callback(episodes);
 								}, JSON.stringify({
 									apikey: tvdbApiKey
+								}, {
+									headers: {
+										'Accept': 'application/json',
+										'Content-Type': 'application/json'
+									}
 								}));
 							}
 						}, () => {
