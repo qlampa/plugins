@@ -1014,14 +1014,15 @@
 				let tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
 				network.timeout(15_000);
 				network.native(tmdbUrl, (tmdbResponse) => {
-					// @todo: check if the 'response["status_code"] === 32', retry it with 'season === 1' and make request to TVDB to remap TMDB's episodes to right seasons by 'response["absoluteNumber"]' and 'response["seasonNumber"]'
-					
+					episodes = tmdbResponse["episodes"];
+					callback(episodes);
+				}, (data) => {
 					// check if season isn't found on TMDB
-					if (tmdbResponse["status_code"] === 34 && object.movie.tvdb_id) {
+					if (data.status === 404 && object.movie.tvdb_id) {
 						// request the absolute season
 						tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/1?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
 						network.native(tmdbUrl, (tmdbAbsoluteResponse) => {
-							episodes = tmdbAbsoluteResponse["episodes"] || [];
+							episodes = tmdbAbsoluteResponse["episodes"];
 						});
 
 						if (episodes) {
@@ -1055,17 +1056,12 @@
 							}
 						}
 					}
-					else
-						episodes = tmdbResponse["episodes"] || [];
 
-					callback(episodes);
-				}, (a, c) => {
-					// @todo: dont call same callback on failure
 					callback(episodes);
 				});
 			}
 			else
-				// @todo: dont call same callback on failure
+				// @todo: dont call same callback for movies?
 				callback(episodes);
 		};
 		/**
@@ -1186,7 +1182,7 @@
 				let scrollToMark = null;
 
 				// @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
-				const maxEpisodeNumberLength = episodes.length.toString().length;
+				const maxEpisodeNumberLength = videos.length.toString().length;
 				const lastEpisodeToAirNumber = object.last_episode_to_air ? object.last_episode_to_air.episode_number : 0;
 				const nextEpisodeToAirNumber = object.next_episode_to_air ? object.next_episode_to_air.episode_number : 0;
 
