@@ -1034,7 +1034,7 @@
 										network.timeout(15_000);
 										network.native(tvdbApiUrl + 'series/' + object.movie.tvdb_id + '/extended?meta=episodes&short=true', (tvdbResponse) => {
 											const tvdbEpisodes = tvdbResponse["data"]["episodes"];
-											const tvdbEpisodesOffset = tvdbEpisodes.find((episode) => {
+											const tvdbEpisodesOffset = tvdbEpisodes.findIndex((episode) => {
 												return episode["season_number"] !== 0;
 											}) || 0;
 
