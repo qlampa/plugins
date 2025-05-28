@@ -1026,7 +1026,7 @@
 							if (episodes) {
 								// request TVDB token
 								network.timeout(10_000);
-								network.native(tvdbApiUrl + '/login', (loginResponse) => {
+								network.native(tvdbApiUrl + 'login', (loginResponse) => {
 									const tvdbToken = loginResponse["data"]["token"];
 
 									if (tvdbToken) {
