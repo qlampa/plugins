@@ -1011,53 +1011,50 @@
 
 			// @todo: shitty workaround cuz tmdb doesnt group anime by seasons properly, in same time tvdb does, but have less general information | probably better way would be to use shikimori api for animes and tmdb for everything else
 			if (object.method === 'tv' && typeof object.movie.id == 'number') {
-				let tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
 				network.timeout(15_000);
-				network.native(tmdbUrl, (tmdbResponse) => {
+				network.native(Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru')), (tmdbResponse) => {
 					episodes = tmdbResponse["episodes"];
 					callback(episodes);
 				}, (data) => {
 					// check if season isn't found on TMDB
 					if (data.status === 404 && object.movie.tvdb_id) {
 						// request the absolute season
-						tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/1?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
 						network.timeout(15_000);
-						network.native(tmdbUrl, (tmdbAbsoluteResponse) => {
+						network.native(Lampa.TMDB.api('tv/' + object.movie.id + '/season/1?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru')), (tmdbAbsoluteResponse) => {
 							episodes = tmdbAbsoluteResponse["episodes"];
-						});
 
-						if (episodes) {
-							// request TVDB token
-							let tvdbToken;
-							network.timeout(10_000);
-							network.native(tvdbApiUrl + '/login', (loginResponse) => {
-								tvdbToken = loginResponse["data"]["token"];
-							}, null, JSON.stringify({
-								apikey: tvdbApiKey
-							}));
+							if (episodes) {
+								// request TVDB token
+								network.timeout(10_000);
+								network.native(tvdbApiUrl + '/login', (loginResponse) => {
+									const tvdbToken = loginResponse["data"]["token"];
 
-							if (tvdbToken) {
-								// make request to TVDB
-								network.timeout(15_000);
-								network.native(tvdbApiUrl + 'series/' + object.movie.tvdb_id + '/extended?meta=episodes&short=true', (tvdbResponse) => {
-									const tvdbEpisodes = tvdbResponse["data"]["episodes"];
-									const tvdbEpisodesOffset = tvdbEpisodes.find((episode) => {
-										return episode["season_number"] !== 0;
-									}) || 0;
+									if (tvdbToken) {
+										// make request to TVDB
+										network.timeout(15_000);
+										network.native(tvdbApiUrl + 'series/' + object.movie.tvdb_id + '/extended?meta=episodes&short=true', (tvdbResponse) => {
+											const tvdbEpisodes = tvdbResponse["data"]["episodes"];
+											const tvdbEpisodesOffset = tvdbEpisodes.find((episode) => {
+												return episode["season_number"] !== 0;
+											}) || 0;
 
-									// remap absolute episodes array
-									episodes.forEach((episode, index) => {
-										episode["episode_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["number"];
-										episode["season_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["seasonNumber"];
-									});
-								}, null, null, {
-									headers: {
-										'Accept': 'application/json',
-										'Authorization': 'Bearer ' + tvdbToken
+											// remap absolute episodes array
+											episodes.forEach((episode, index) => {
+												episode["episode_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["number"];
+												episode["season_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["seasonNumber"];
+											});
+										}, null, null, {
+											headers: {
+												'Accept': 'application/json',
+												'Authorization': 'Bearer ' + tvdbToken
+											}
+										});
 									}
-								});
+								}, null, JSON.stringify({
+									apikey: tvdbApiKey
+								}));
 							}
-						}
+						});
 					}
 
 					callback(episodes);
