@@ -525,7 +525,7 @@
 						data.season = parseInt(season);
 					if (text)
 						data.text = text;
-					data.active = item.hasClass('active');
+					data.active = htmlItem.hasClass('active');
 					elements.push(data);
 				});
 				return elements;
