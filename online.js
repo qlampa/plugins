@@ -1017,7 +1017,7 @@
 					// @todo: check if the 'response["status_code"] === 32', retry it with 'season === 1' and make request to TVDB to remap TMDB's episodes to right seasons by 'response["absoluteNumber"]' and 'response["seasonNumber"]'
 					
 					// check if season isn't found on TMDB
-					if (tmdbResponse["status_code"] === 32 && object.movie.tvdb_id) {
+					if (tmdbResponse["status_code"] === 34 && object.movie.tvdb_id) {
 						// request the absolute season
 						tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/1?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
 						network.native(tmdbUrl, (tmdbAbsoluteResponse) => {
