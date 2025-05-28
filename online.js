@@ -1021,6 +1021,7 @@
 					if (data.status === 404 && object.movie.tvdb_id) {
 						// request the absolute season
 						tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/1?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
+						network.timeout(15_000);
 						network.native(tmdbUrl, (tmdbAbsoluteResponse) => {
 							episodes = tmdbAbsoluteResponse["episodes"];
 						});
@@ -1028,6 +1029,7 @@
 						if (episodes) {
 							// request TVDB token
 							let tvdbToken;
+							network.timeout(10_000);
 							network.native(tvdbApiUrl + '/login', (loginResponse) => {
 								tvdbToken = loginResponse["data"]["token"];
 							}, null, JSON.stringify({
@@ -1036,6 +1038,7 @@
 
 							if (tvdbToken) {
 								// make request to TVDB
+								network.timeout(15_000);
 								network.native(tvdbApiUrl + 'series/' + object.movie.tvdb_id + '/extended?meta=episodes&short=true', (tvdbResponse) => {
 									const tvdbEpisodes = tvdbResponse["data"]["episodes"];
 									const tvdbEpisodesOffset = tvdbEpisodes.find((episode) => {
