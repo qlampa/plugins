@@ -1016,6 +1016,7 @@
 					episodes = tmdbResponse["episodes"];
 					callback(episodes);
 				}, (data) => {
+					// @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
 					// check if season isn't found on TMDB
 					if (data.status === 404 && object.movie.tvdb_id) {
 						// request the absolute season
@@ -1034,8 +1035,10 @@
 										network.timeout(15_000);
 										network.native(tvdbApiUrl + 'series/' + object.movie.tvdb_id + '/extended?meta=episodes&short=true', (tvdbResponse) => {
 											const tvdbEpisodes = tvdbResponse["data"]["episodes"];
+
+											// find first episode index of the selected season
 											const tvdbEpisodesOffset = tvdbEpisodes.findIndex((episode) => {
-												return episode["season_number"] !== 0;
+												return episode["seasonNumber"] !== 0;
 											}) || 0;
 
 											// remap absolute episodes array
@@ -1043,6 +1046,8 @@
 												episode["episode_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["number"];
 												episode["season_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["seasonNumber"];
 											});
+
+											callback(episodes);
 										}, () => {
 											callback(episodes);
 										}, null, {
@@ -1086,6 +1091,7 @@
 				return this.showEmptyPage();
 
 			scroll.clear();
+			this.setLoading(true);
 
 			/*
 			let viewList = Lampa.Storage.cache('online_view', 5000, []);
@@ -1185,6 +1191,8 @@
 			// @note: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
 			const seasonNumber = videos[0].season;
 			this.requestEpisodes(seasonNumber, (episodes) => {
+				this.setLoading(false);
+
 				let viewList = Lampa.Storage.cache('online_view', 5000, []);
 				let choice = this.getChoice();
 
@@ -1192,10 +1200,8 @@
 				let scrollToLast = null;
 				let scrollToMark = null;
 
-				// @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
 				const maxEpisodeNumberLength = videos.length.toString().length;
-				const lastEpisodeToAirNumber = object.last_episode_to_air ? object.last_episode_to_air.episode_number : 0;
-				const nextEpisodeToAirNumber = object.next_episode_to_air ? object.next_episode_to_air.episode_number : 0;
+				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : 0;
 
 				videos.forEach((element, index) => {
 					let episode = object.method === 'tv' && episodes.length && !callbacks.similars ? episodes.find((e) => {
@@ -1374,9 +1380,8 @@
 				});
 
 				// append ongoing episodes
-				// @note: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
-				if (nextEpisodeToAirNumber && videos.length >= lastEpisodeToAirNumber && episodes.length > videos.length && !callbacks.similars) {
-					let episodesToAir = episodes.slice(nextEpisodeToAirNumber, videos.length);
+				if (nextEpisodeToAirNumber && !callbacks.similars) {
+					const episodesToAir = episodes.slice(nextEpisodeToAirNumber);
 					episodesToAir.forEach((episode) => {
 						let details = [];
 						let rating = '';
