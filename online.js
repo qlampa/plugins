@@ -1136,7 +1136,9 @@
 			}*/
 			
 			// @note: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
-			this.requestEpisodes(Math.min(videos[0].season, object.number_of_seasons), (episodes) => {
+			const seasonNumber = Math.min(videos[0].season, object.movie.number_of_seasons || 1);
+			
+			this.requestEpisodes(seasonNumber, (episodes) => {
 				let viewList = Lampa.Storage.cache('online_view', 5000, []);
 				let choice = this.getChoice();
 
@@ -1345,7 +1347,7 @@
 						if (episode.air_date) {
 							details.push(Lampa.Utils.parseTime(episode.air_date).full);
 
-							let airDate = new Date((episode.air_date).replace(/-/g, '/'));
+							let airDate = new Date(episode.air_date.replace(/-/g, '/'));
 							daysLeft = Math.round((airDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
 						}
 
@@ -1828,7 +1830,7 @@
 		Lampa.Template.add('qwatch_css',
 			'<style>' +
 			'@charset \'UTF-8\';' +
-			'.torrent-item--qwatch{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}' +
+			'.torrent-item--qwatch{padding:unset !important;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}' +
 			'.torrent-item--qwatch .qwatch-split{font-size:.8em;margin:0 .5em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
 			'.qwatch-item__body{padding:1.2em;line-height:1.3;-webkit-box-flex:1;-webkit-flex-grow:1;-moz-box-flex:1;-ms-flex-positive:1;flex-grow:1;position:relative}' +
 			'@media screen and (max-width:480px){.qwatch-item__body{padding:.8em 1.2em}}' +
