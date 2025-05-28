@@ -442,7 +442,7 @@
 				providerActive = object.provider;
 				filterSources = [];
 
-				return network.native(object.url.replace('rjson=', 'nojson='), this.parseVideosData.bind(this), () => {
+				return network.native(object.url, this.parseVideosData.bind(this), () => {
 					explorer.render().find('.torrent-filter').remove();
 					this.showEmptyPage();
 				}, false, {
@@ -1205,13 +1205,13 @@
 					if (object.method === 'movie') {
 						// check if the current item is watched last
 						if (choice.movie_view == hashFile)
-							scrollToElement = html;
+							scrollToLast = html;
 					}
 					else {
 						// check if the current episode is watched last
 						const episodeLastWatched = choice.episodes_view[element.season];
 						if (episodeLastWatched !== undefined && episodeLastWatched == episodeNumber)
-							scrollToElement = html;
+							scrollToLast = html;
 					}
 
 					// load item image
@@ -1835,8 +1835,8 @@
 			'.qwatch-item__img{position:relative;width:13em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0;min-height:8.2em}' +
 			'.qwatch-item__img>img{position:absolute;top:0;left:0;width:100%;height:100%;-o-object-fit:cover;object-fit:cover;-webkit-border-top-left-radius:.3em;-webkit-border-bottom-left-radius:.3em;border-top-left-radius:.3em;border-bottom-left-radius:.3em;opacity:0;-webkit-transition:opacity .3s;-o-transition:opacity .3s;-moz-transition:opacity .3s;transition:opacity .3s}' +
 			'.qwatch-item__img--loaded>img{opacity:1}@media screen and (max-width:480px){.qwatch-item__img{width:7em;min-height:6em}}' +
-			'.qwatch-item__folder{padding:1em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
-			'.qwatch-item__folder>svg{width:4.4em !important;height:4.4em !important}' +
+			'.qwatch-item__folder{-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
+			'.qwatch-item__folder>svg{margin:1em;width:4.4em;height:4.4em}' +
 			'.qwatch-item__watched{position:absolute;top:1em;left:1em;background:rgba(0,0,0,.45);-webkit-border-radius:100%;border-radius:100%;padding:.25em;font-size:.76em}' +
 			'.qwatch-item__watched>svg{width:1.5em !important;height:1.5em !important}' +
 			'.qwatch-item__episode-number{position:absolute;top:0;left:0;right:0;bottom:0;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;-webkit-box-pack:center;-webkit-justify-content:center;-moz-box-pack:center;-ms-flex-pack:center;justify-content:center;font-size:2em;font-weight:600}' +
