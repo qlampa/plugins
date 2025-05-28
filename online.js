@@ -21,6 +21,8 @@
 		'videoseed', 'vidlink', 'vidsrc',
 		'vokino', 'zetflix'
 	];
+	const tvdbApiUrl = 'https://api4.thetvdb.com/v4/';
+	const tvdbApiKey = 'edae60dc-1b44-4bac-8db7-65c0aaf5258b';
 
 	if (!window.rch) {
 		Lampa.Utils.putScript(['https://qlampa.github.io/plugins/invc-rch.js'], () => { }, null, () => {
@@ -177,25 +179,18 @@
 		};
 		this.requestExternalIds = function () {
 			return new Promise((resolve, reject) => {
-				if (!object.movie.imdb_id || !object.movie.kinopoisk_id) {
-					let query = [];
-					query.push('id=' + object.movie.id);
-					query.push('serial=' + (object.movie.name ? 1 : 0));
-					if (object.movie.imdb_id)
-						query.push('imdb_id=' + object.movie.imdb_id);
-					if (object.movie.kinopoisk_id)
-						query.push('kinopoisk_id=' + object.movie.kinopoisk_id);
+				// try to pull external ids via TMDB
+				network.timeout(10_000);
+				network.silent(Lampa.TMDB.api(object.method + '/' + object.movie.id + '/external_ids/?api_key=' + Lampa.TMDB.key()), (json) => {
+					for (const name in json) {
+						const value = json[name];
 
-					network.timeout(10_000);
-					network.silent(hostAddress + 'externalids?' + query.join('&'), (externalIds) => {
-						for (const id in externalIds)
-							object.movie[id] = externalIds[id];
+						if (value)
+							object.movie[name] = value;
+					}
 
-						resolve();
-					}, resolve);
-				}
-				else
 					resolve();
+				}, resolve);
 			});
 		};
 		this.updateProvider = function (providerName) {
@@ -345,13 +340,13 @@
 					if (targetJson["accsdb"])
 						return reject(targetJson);
 
-					if (targetJson.life) {
-						this.memkey = targetJson.memkey;
-						if (targetJson.title) {
+					if (targetJson["life"]) {
+						this.memkey = targetJson["memkey"];
+						if (targetJson["title"]) {
 							if (object.movie.name)
-								object.movie.name = targetJson.title;
-							if (object.movie.title)
-								object.movie.title = targetJson.title;
+								object.movie.name = targetJson["title"];
+							else if (object.movie.title)
+								object.movie.title = targetJson["title"];
 						}
 						filter.render().find('.filter--sort').append('<span class="qwatch-provider-loader" style="width: 1.2em; height: 1.2em; margin-top: 0; background: url(./img/loader.svg) no-repeat 50% 50%; background-size: contain; margin-left: 0.5em"></span>');
 						this.lifeSource().then(this.startSource).then(resolve).catch(reject);
@@ -1013,11 +1008,56 @@
 		 **/
 		this.requestEpisodes = function(season, callback) {
 			let episodes = [];
-			if (typeof object.movie.id == 'number' && object.movie.name) {
-				const tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
+
+			// @todo: trash af cuz 
+			if (object.method === 'tv' && typeof object.movie.id == 'number') {
+				let tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
 				network.timeout(15_000);
-				network.native(tmdbUrl, (response) => {
-					episodes = response["episodes"] || [];
+				network.native(tmdbUrl, (tmdbResponse) => {
+					// @todo: check if the 'response["status_code"] === 32', retry it with 'season === 1' and make request to TVDB to remap TMDB's episodes to right seasons by 'response["absoluteNumber"]' and 'response["seasonNumber"]'
+					
+					// check if season isn't found on TMDB
+					if (tmdbResponse["status_code"] === 32 && object.movie.tvdb_id) {
+						// request the absolute season
+						tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/1?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
+						network.native(tmdbUrl, (tmdbAbsoluteResponse) => {
+							episodes = tmdbAbsoluteResponse["episodes"] || [];
+						});
+
+						if (episodes) {
+							// request TVDB token
+							let tvdbToken;
+							network.native(tvdbApiUrl + '/login', (loginResponse) => {
+								tvdbToken = loginResponse["data"]["token"];
+							}, null, JSON.stringify({
+								apikey: tvdbApiKey
+							}));
+
+							if (tvdbToken) {
+								// make request to TVDB
+								network.native(tvdbApiUrl + 'series/' + object.movie.tvdb_id + '/extended?meta=episodes&short=true', (tvdbResponse) => {
+									const tvdbEpisodes = tvdbResponse["data"]["episodes"];
+									const tvdbEpisodesOffset = tvdbEpisodes.find((episode) => {
+										return episode["season_number"] != 0;
+									}) || 0;
+
+									// remap absolute episodes array
+									episodes.forEach((episode, index) => {
+										episode["episode_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["number"];
+										episode["season_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["seasonNumber"];
+									});
+								}, null, null, {
+									headers: {
+										'Accept': 'application/json',
+										'Authorization': 'Bearer ' + tvdbToken
+									}
+								});
+							}
+						}
+					}
+					else
+						episodes = tmdbResponse["episodes"] || [];
+
 					callback(episodes);
 				}, (a, c) => {
 					// @todo: dont call same callback on failure
@@ -1136,9 +1176,7 @@
 			}*/
 			
 			// @note: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
-			const seasonNumber = Math.min(videos[0].season, object.movie.number_of_seasons || 1);
-			
-			this.requestEpisodes(seasonNumber, (episodes) => {
+			this.requestEpisodes(videos[0].season, (episodes) => {
 				let viewList = Lampa.Storage.cache('online_view', 5000, []);
 				let choice = this.getChoice();
 
@@ -1147,12 +1185,14 @@
 				let scrollToMark = null;
 
 				// @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
-				const maxEpisodeNumberLength = videos.length.toString().length;
+				const maxEpisodeNumberLength = episodes.length.toString().length;
+				const lastEpisodeToAirNumber = object.last_episode_to_air ? object.last_episode_to_air.episode_number : 0;
+				const nextEpisodeToAirNumber = object.next_episode_to_air ? object.next_episode_to_air.episode_number : 0;
+
 				videos.forEach((element, index) => {
 					let episode = object.method === 'tv' && episodes.length && !callbacks.similars ? episodes.find((e) => {
 						return e.episode_number == element.episode;
 					}) : null;
-					let episodeNumber = element.episode || index + 1;
 
 					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || element.voice_name || (object.method === 'tv' ? 'Неизвестно' : element.text) || 'Неизвестно';
 					if (element.quality) {
@@ -1212,7 +1252,7 @@
 					else {
 						// check if the current episode is watched last
 						const episodeLastWatched = choice.episodes_view[element.season];
-						if (episodeLastWatched !== undefined && episodeLastWatched == episodeNumber)
+						if (episodeLastWatched !== undefined && episodeLastWatched == element.episode)
 							scrollToLast = html;
 					}
 
@@ -1220,7 +1260,7 @@
 					let loader = html.find('.qwatch__loader');
 					let image = html.find('.qwatch-item__img');
 					if (object.method === 'tv' && !episode) {
-						image.append('<div class="qwatch-item__episode-number"><span>' + String(episodeNumber).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
+						image.append('<div class="qwatch-item__episode-number"><span>' + String(element.episode).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						loader.remove();
 					}
 					else if (object.method === 'movie' && ['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
@@ -1234,7 +1274,7 @@
 							image.addClass('qwatch-item__img--loaded');
 							loader.remove();
 							if (object.method === 'tv')
-								image.append('<div class="qwatch-item__episode-number"><span>' + String(episodeNumber).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
+								image.append('<div class="qwatch-item__episode-number"><span>' + String(element.episode).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						};
 						thumbImg.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
 						images.push(thumbImg);
@@ -1277,7 +1317,7 @@
 						if (object.method === 'movie')
 							choice.movie_view = hashFile;
 						else
-							choice.episodes_view[element.season] = episodeNumber;
+							choice.episodes_view[element.season] = element.episode;
 						this.saveChoice(choice);
 					};
 					element.unmarkWatched = () => {
@@ -1326,13 +1366,7 @@
 				});
 
 				// append ongoing episodes
-				// @todo: process those within released ones
-				/*
-				 * @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
-				 * to fix that we can make request to "https://api.themoviedb.org/3/tv/{series_id}" and use "next_episode_to_air" from there
-				 */
-				const lastEpisodeToAirNumber = object.last_episode_to_air ? object.last_episode_to_air.episode_number : 0;
-				const nextEpisodeToAirNumber = object.next_episode_to_air ? object.next_episode_to_air.episode_number : 0;
+				// @note: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
 				if (nextEpisodeToAirNumber && videos.length >= lastEpisodeToAirNumber && episodes.length > videos.length && !callbacks.similars) {
 					let episodesToAir = episodes.slice(nextEpisodeToAirNumber, videos.length);
 					episodesToAir.forEach((episode) => {
@@ -1852,7 +1886,7 @@
 			'@media screen and (max-width:480px){.qwatch-item__title{font-size:1.4em}}' +
 			'.qwatch-item__time{padding-left:2em}' +
 			'.qwatch-item__details{display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center}' +
-			'.qwatch-item__details>span{overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical}' +
+			'.qwatch-item__details>span{display:-webkit-box;-webkit-line-clamp:1;line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;-o-text-overflow:ellipsis;text-overflow:ellipsis;font-weight:300}' +
 			'.qwatch-item__quality{padding-left:1em;white-space:nowrap}' +
 			'.qwatch-item--folder .qwatch-item__footer{margin-top:.8em}' +
 			'.qwatch-item__rating{display:-webkit-inline-box;display:-webkit-inline-flex;display:-moz-inline-box;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-webkit-align-items:center;-moz-box-align:center;-ms-flex-align:center;align-items:center;margin-right:.5em}' +
