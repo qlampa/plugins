@@ -181,7 +181,7 @@
 			return new Promise((resolve, reject) => {
 				// try to pull external ids via TMDB
 				network.timeout(10_000);
-				network.silent(Lampa.TMDB.api(object.method + '/' + object.movie.id + '/external_ids/?api_key=' + Lampa.TMDB.key()), (json) => {
+				network.silent(Lampa.TMDB.api(object.method + '/' + object.movie.id + '/external_ids?api_key=' + Lampa.TMDB.key()), (json) => {
 					for (const name in json) {
 						const value = json[name];
 
@@ -1009,7 +1009,7 @@
 		this.requestEpisodes = function(season, callback) {
 			let episodes = [];
 
-			// @todo: trash af cuz 
+			// @todo: shitty workaround cuz tmdb doesnt group anime by seasons properly, in same time tvdb does, but have less general information | probably better way would be to use shikimori api for animes and tmdb for everything else
 			if (object.method === 'tv' && typeof object.movie.id == 'number') {
 				let tmdbUrl = Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru'));
 				network.timeout(15_000);
