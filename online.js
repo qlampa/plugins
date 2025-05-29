@@ -221,7 +221,7 @@
 		};
 		this.addLampacParams = function (url) {
 			let query = [];
-
+			query.push('rjson=true');
 			query.push('id=' + object.movie.id);
 			if (object.movie.imdb_id)
 				query.push('imdb_id=' + object.movie.imdb_id);
@@ -475,7 +475,7 @@
 		/**
 		 * Начать поиск
 		 */
-		this.search = function () { //this.loading(true)
+		this.search = function () {
 			this.filter({
 				source: filterSources
 			}, this.getChoice());
@@ -502,7 +502,7 @@
 		 * parse html page into json array
 		 * @param {string} htmlData 
 		 * @param {string} className 
-		 * @returns {{method:string,url:?string,img:?string,similar:?boolean,year:?number,quality:?Object.<string, string>,episode:?number,season:?number,title:?string,text:?string,vast_url:?string,vast_msg:?string,active:?boolean}[]}
+		 * @returns {{method:string, url:?string, img:?string, similar:?boolean, year:?number, quality:?Object.<string, string>, episode:?number, season:?number, title:?string, text:?string, vast_url:?string, vast_msg:?string, active:?boolean}[]}
 		 **/
 		this.parseVideosHtml = function (htmlData, className) {
 			try {
@@ -576,7 +576,7 @@
 		};
 		/**
 		 * @typedef PlayData
-		 * @type {{title:string,url:string,url_reserve:string,quality:Object[],hls_type:?string,hls_manifest_timeout:?number,hls_retry_timeout:?number,timeline:Object,subtitles:?Object[],voiceovers:?Object[],vast_url:?string,vast_msg:?string,callback:Function}}
+		 * @type {{title:string, url:string, url_reserve:string, quality:Object[], hls_type:?string, hls_manifest_timeout:?number, hls_retry_timeout:?number, timeline:Object, subtitles:?Object[], voiceovers:?Object[], vast_url:?string, vast_msg:?string, callback:Function}}
 		 **/
 		/**
 		 * construct player object
@@ -621,6 +621,145 @@
 				}
 			}
 		};
+		/**
+		 * parse information of the requested videos
+		 * @typedef {{method:string, url:string, title:?string, quality:?Object.<string, string>[], maxquality:?string, translate:?string, vast_url:?string, vast_msg:?string}} MovieObject
+		 * @typedef {{method:string, url:string, stream:?string, title:?string, name:?string, season:number, episode:number, vast_url:?string, vast_msg:?string}} EpisodeObject
+		 * @typedef {{url:string, title:?string, img:?string, details:?string, year:?string}} SimilarObject
+		 * @param {{type:string, voice:?{method: string, url:string, name:string, active:boolean}[], data:MovieObject[]|EpisodeObject[]|SimilarObject[]}} data 
+		 **/
+		this.parseVideosData = function(data) {
+			let json = (Lampa.Arrays.isObject(data) && data.rch) ? data : Lampa.Arrays.decodeJson(data, {});
+			if (json.rch)
+				return this.rch(json);
+
+			try {
+				const entries = json["data"];
+
+				switch (json["type"]) {
+					case 'movie': {
+						this.activity.loader(false);
+
+						this.replaceChoice({
+							voice: 0,
+							voice_url: '',
+							voice_name: ''
+						});
+
+						this.showVideos(entries);
+						break;
+					}
+					// parse seasons information
+					case 'season': {
+						filterFound.season = entries.map((season) => {
+							return {
+								url: season.url,
+								title: season.name
+							};
+						});
+
+						const selectedSeason = this.getChoice(providerActive).season;
+						let season = filterFound.season[selectedSeason];
+						if (!season) {
+							season = filterFound.season[0];
+							this.replaceChoice({
+								season: 0
+							});
+						}
+
+						this.request(season.url);
+						break;
+					}
+					// parse episodes information
+					case 'episode': {
+						this.activity.loader(false);
+
+						// remap season and episode keys
+						entries.forEach((episode) => {
+							episode["season"] = episode["s"];
+							delete episode["s"];
+							episode["episode"] = episode["e"];
+							delete episode["e"];
+						});
+
+						const voices = json["voice"];
+						if (voices) {
+							filterFound.voice = voices.map((voice) => {
+								return {
+									url: voice["url"],
+									title: voice["text"]
+								};
+							});
+
+							const choice = this.getChoice(providerActive);
+							const selectedVoiceUrl = choice.voice_url;
+							const selectedVoiceName = choice.voice_name;
+
+							const foundVoiceUrl = voices.find((voice) => {
+								return voice["url"] == selectedVoiceUrl;
+							});
+							const foundVoiceName = voices.find((voice) => {
+								return voice["name"] == selectedVoiceName;
+							});
+							const foundVoiceActive = voices.find((voice) => {
+								return voice["active"];
+							});
+
+							if (foundVoiceUrl && !foundVoiceUrl.active) {
+								this.replaceChoice({
+									voice: voices.indexOf(foundVoiceUrl),
+									voice_name: foundVoiceUrl["name"]
+								});
+								this.request(foundVoiceUrl.url);
+							}
+							else if (foundVoiceName && !foundVoiceName.active) {
+								this.replaceChoice({
+									voice: voices.indexOf(foundVoiceName),
+									voice_name: foundVoiceName["name"]
+								});
+								this.request(foundVoiceName["url"]);
+							}
+							else {
+								if (foundVoiceActive) {
+									this.replaceChoice({
+										voice: voices.indexOf(foundVoiceActive),
+										voice_name: foundVoiceActive["name"]
+									});
+								}
+
+								this.showVideos(entries);
+							}
+						}
+						else {
+							this.replaceChoice({
+								voice: 0,
+								voice_url: '',
+								voice_name: ''
+							});
+
+							this.showVideos(entries);
+						}
+
+						break;
+					}
+					case 'similar': {
+						this.activity.loader(false);
+						this.showSimilars(entries);
+						break;
+					}
+					default:
+						this.showNoAnswerPage(data); // @todo: instead show human readable error text
+						break;
+				}
+			}
+			catch (err) {
+				this.showNoAnswerPage(err);
+			}
+		};
+		/**
+		 * show list of the found videos
+		 * @param {{url:string,}[]} videos
+		 **/
 		this.showVideos = function (videos) {
 			this.drawList(videos, {
 				onEnter: (video, html) => {
@@ -726,155 +865,40 @@
 				})
 			}, this.getChoice());
 		};
-		this.parseVideosData = function(data) {
-			let json = (Lampa.Arrays.isObject(data) && data.rch) ? data : Lampa.Arrays.decodeJson(data, {});
-			if (json.rch)
-				return this.rch(json);
-
-			try {
-				let videoItems = this.parseVideosHtml(data, '.videos__item');
-				let videoButtons = this.parseVideosHtml(data, '.videos__button');
-
-				if (videoItems.length == 1 && videoItems[0].method == 'link' && !videoItems[0].similar) {
-					filterFound.season = videoItems.map((s) => {
-						return {
-							title: s.text,
-							url: s.url
-						};
-					});
-					this.replaceChoice({
-						season: 0
-					});
-					this.request(videoItems[0].url);
-				}
-				else {
-					this.activity.loader(false);
-
-					let videoFiles = videoItems.filter((videoItem) => {
-						return videoItem.method == 'play' || videoItem.method == 'call';
-					});
-					let videoSimilars = videoItems.filter((videoItem) => {
-						return videoItem.similar;
-					});
-
-					if (videoFiles.length) {
-						if (videoButtons.length) {
-							filterFound.voice = videoButtons.map((b) => {
-								return {
-									title: b.text,
-									url: b.url
-								};
-							});
-
-							const choice = this.getChoice(providerActive);
-							let selectedVoiceUrl = choice.voice_url;
-							let selectedVoiceName = choice.voice_name;
-							let foundVoiceUrl = videoButtons.find((v) => {
-								return v.url == selectedVoiceUrl;
-							});
-							let foundVoiceName = videoButtons.find((v) => {
-								return v.text == selectedVoiceName;
-							});
-							let foundVoiceIsActive = videoButtons.find((v) => {
-								return v.active;
-							});
-
-							if (foundVoiceUrl && !foundVoiceUrl.active) {
-								this.replaceChoice({
-									voice: videoButtons.indexOf(foundVoiceUrl),
-									voice_name: foundVoiceUrl.text
-								});
-								this.request(foundVoiceUrl.url);
-							}
-							else if (foundVoiceName && !foundVoiceName.active) {
-								this.replaceChoice({
-									voice: videoButtons.indexOf(foundVoiceName),
-									voice_name: foundVoiceName.text
-								});
-								this.request(foundVoiceName.url);
-							}
-							else {
-								if (foundVoiceIsActive) {
-									this.replaceChoice({
-										voice: videoButtons.indexOf(foundVoiceIsActive),
-										voice_name: foundVoiceIsActive.text
-									});
-								}
-								this.showVideos(videoFiles);
-							}
-						}
-						else {
-							this.replaceChoice({
-								voice: 0,
-								voice_url: '',
-								voice_name: ''
-							});
-							this.showVideos(videoFiles);
-						}
-					}
-					else if (videoItems.length) {
-						if (videoSimilars.length) {
-							this.showSimilars(videoSimilars);
-							this.activity.loader(false);
-						}
-						else {
-							//this.activity.loader(true)
-							filterFound.season = videoItems.map((video) => {
-								return {
-									title: video.text,
-									url: video.url
-								};
-							});
-
-							const selectedSeason = this.getChoice(providerActive).season;
-							const season = filterFound.season[selectedSeason] || filterFound.season[0]; // @test: debug this
-							this.request(season.url);
-						}
-					}
-					else
-						this.showNoAnswerPage(data); // @todo: instead show human readable error text
-				}
-			}
-			catch (err) {
-				this.showNoAnswerPage(err);
-			}
-		};
+		/**
+		 * show list of the found similar results
+		 * @param {{url:string,details:?string,title:string,start_date:?string,year:?string,img:?string}[]} similars
+		 **/
 		this.showSimilars = function(similars) {
 			scroll.clear();
 
 			similars.forEach((folder) => {
-				folder.title = folder.text;
-				folder.details = '';
-
 				let details = [];
 				const year = ((folder.start_date || folder.year || object.movie.release_date || object.movie.first_air_date || '') + '').slice(0, 4);
 				if (year)
 					details.push(year);
 				if (folder.details)
 					details.push(folder.details);
-
-				folder.title = folder.title || folder.text;
-				folder.time = folder.time || '';
 				folder.details = details.join('<span class="qwatch-split">●</span>');
 
+				folder.time = folder.time || '';
+
 				let folderElement = Lampa.Template.get('qwatch_item_folder', folder);
-				if (folder.img) {
+				if (folder.img !== undefined) {
 					let imageElement = $('<img style="height: 7em; width: 7em; border-radius: 0.3em;"/>');
 					folderElement.find('.qwatch-item__folder').empty().append(imageElement);
 
-					if (folder.img !== undefined) {
-						if (folder.img.charAt(0) === '/')
-							folder.img = hostAddress + folder.img.substring(1);
-						if (folder.img.indexOf('/proxyimg') !== -1)
-							folder.img = addAccountParams(folder.img);
-					}
+					if (folder.img.charAt(0) === '/')
+						folder.img = hostAddress + folder.img.substring(1);
+					if (folder.img.indexOf('/proxyimg') !== -1)
+						folder.img = addAccountParams(folder.img);
 
 					Lampa.Utils.imgLoad(imageElement, folder.img);
 				}
 
 				folderElement.on('hover:enter', () => {
 					this.resetPage();
-					this.request(folder.url);
+					this.request(folder["url"]);
 					// @todo: on back, back to folders list
 				}).on('hover:focus', (event) => {
 					lastFocusTarget = event.target;
@@ -1214,40 +1238,40 @@
 				const maxEpisodeNumberLength = videos.length.toString().length;
 				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : 0;
 
-				videos.forEach((element, index) => {
+				videos.forEach((entry, index) => {
 					let episode = object.method === 'tv' && episodes.length && !callbacks.similars ? episodes.find((e) => {
-						return e.episode_number == element.episode && e.season_number == seasonNumber;
+						return e.episode_number == entry.episode && e.season_number == seasonNumber;
 					}) : null;
 
-					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || element.voice_name || (object.method === 'tv' ? 'Неизвестно' : element.text) || 'Неизвестно';
-					if (element.quality) {
-						element.qualities = element.quality;
-						element.quality = Lampa.Arrays.getKeys(element.quality)[0];
+					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || (object.method === 'tv' ? 'Неизвестно' : entry.text) || 'Неизвестно';
+					if (entry.quality) {
+						entry.qualities = entry.quality;
+						entry.quality = Lampa.Arrays.getKeys(entry.quality)[0];
 					}
 
-					Lampa.Arrays.extend(element, {
+					Lampa.Arrays.extend(entry, {
 						details: voiceName,
 						quality: '',
 						time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true)
 					});
 
-					let hashFile = Lampa.Utils.hash(element.season ? [element.season, element.season > 10 ? ':' : '', element.episode, object.movie.original_title, voiceName].join('') : object.movie.original_title + voiceName);
-					let hashTimeline = Lampa.Utils.hash(element.season ? [element.season, element.season > 10 ? ':' : '', element.episode, object.movie.original_title].join('') : object.movie.original_title);
+					let hashFile = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title, voiceName].join('') : object.movie.original_title + voiceName);
+					let hashTimeline = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title].join('') : object.movie.original_title);
 
-					if (element.season && voiceName) {
-						element.translate_episode_end = this.getLastEpisode(videos);
-						element.translate_voice = voiceName;
+					if (entry.season && voiceName) {
+						entry.translate_episode_end = this.getLastEpisode(videos);
+						entry.translate_voice = voiceName;
 					}
-					if (element.text && !episode)
-						element.title = element.text;
+					if (entry.text && !episode)
+						entry.title = entry.text;
 
 					// @todo: when video switched via external player it's not marked as watched | add listener to timeline 'update' event / overload 'timeline.handler' | or add listener to playlist 'select' event, must cause less overhead
-					element.timeline = Lampa.Timeline.view(hashTimeline);
+					entry.timeline = Lampa.Timeline.view(hashTimeline);
 
 					let details = [];
 					let rating = '';
 					if (episode) {
-						element.title = episode.name;
+						entry.title = episode.name;
 
 						if (episode.vote_average)
 							rating = Lampa.Template.get('qwatch_item_rating', {
@@ -1260,14 +1284,14 @@
 					else if (isFullWidth) {
 						if (object.movie.release_date)
 							details.push(Lampa.Utils.parseTime(object.movie.release_date).full);
-						if (object.movie.tagline && element.details.length < 32)
+						if (object.movie.tagline && entry.details.length < 32)
 							details.push(object.movie.tagline);
 					}
-					if (element.details)
-						details.push(element.details);
-					element.details = rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
+					if (entry.details)
+						details.push(entry.details);
+					entry.details = rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
 
-					let html = Lampa.Template.get('qwatch_item_full', element);
+					let html = Lampa.Template.get('qwatch_item_full', entry);
 					// set scroll target
 					if (object.method === 'movie') {
 						// check if the current item is watched last
@@ -1276,8 +1300,8 @@
 					}
 					else {
 						// check if the current episode is watched last
-						const episodeLastWatched = choice.episodes_view[element.season];
-						if (episodeLastWatched !== undefined && episodeLastWatched == element.episode)
+						const episodeLastWatched = choice.episodes_view[entry.season];
+						if (episodeLastWatched !== undefined && episodeLastWatched == entry.episode)
 							scrollToLast = html;
 					}
 
@@ -1285,7 +1309,7 @@
 					let loader = html.find('.qwatch__loader');
 					let image = html.find('.qwatch-item__img');
 					if (object.method === 'tv' && !episode) {
-						image.append('<div class="qwatch-item__episode-number"><span>' + String(element.episode).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
+						image.append('<div class="qwatch-item__episode-number"><span>' + String(entry.episode).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						loader.remove();
 					}
 					else if (object.method === 'movie' && ['cub', 'tmdb'].indexOf(object.movie.source || 'tmdb') == -1)
@@ -1299,13 +1323,13 @@
 							image.addClass('qwatch-item__img--loaded');
 							loader.remove();
 							if (object.method === 'tv')
-								image.append('<div class="qwatch-item__episode-number"><span>' + String(element.episode).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
+								image.append('<div class="qwatch-item__episode-number"><span>' + String(entry.episode).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						};
 						thumbImg.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
 						images.push(thumbImg);
 					}
 
-					html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(element.timeline));
+					html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(entry.timeline));
 					// @todo: can be moved inplace of movie runtime when watched
 					//html.find('.qwatch-item__timeline').append(Lampa.Timeline.details(element.timeline));
 
@@ -1314,16 +1338,16 @@
 						html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 					}
 
-					element.clearTimeline = () => {
-						element.timeline.percent = 0;
-						element.timeline.time = 0;
-						element.timeline.duration = 0;
-						Lampa.Timeline.update(element.timeline);
+					entry.clearTimeline = () => {
+						entry.timeline.percent = 0;
+						entry.timeline.time = 0;
+						entry.timeline.duration = 0;
+						Lampa.Timeline.update(entry.timeline);
 					};
 					/**
 					 * mark video as watched, max out the timeline and save choice
 					 **/
-					element.markWatched = () => {
+					entry.markWatched = () => {
 						// @note: 'online_view' is internal variable that affects other aspects
 						viewList = Lampa.Storage.cache('online_view', 5000, []);
 						if (viewList.indexOf(hashFile) == -1) {
@@ -1335,17 +1359,17 @@
 						}
 
 						// max out the timeline
-						element.timeline.percent = 100;
-						Lampa.Timeline.update(element.timeline);
+						entry.timeline.percent = 100;
+						Lampa.Timeline.update(entry.timeline);
 
 						choice = this.getChoice();
 						if (object.method === 'movie')
 							choice.movie_view = hashFile;
 						else
-							choice.episodes_view[element.season] = element.episode;
+							choice.episodes_view[entry.season] = entry.episode;
 						this.saveChoice(choice);
 					};
-					element.unmarkWatched = () => {
+					entry.unmarkWatched = () => {
 						// @note: 'online_view' is internal variable that affects other aspects
 						viewList = Lampa.Storage.cache('online_view', 5000, []);
 						if (viewList.indexOf(hashFile) !== -1) {
@@ -1353,7 +1377,7 @@
 							Lampa.Storage.remove('online_view', hashFile);
 
 							html.find('.qwatch-item__watched').remove();
-							element.clearTimeline();
+							entry.clearTimeline();
 						}
 					};
 
@@ -1361,22 +1385,22 @@
 						if (object.movie.id)
 							Lampa.Favorite.add('history', object.movie, 100);
 						if (callbacks.onEnter)
-							callbacks.onEnter(element, html);
+							callbacks.onEnter(entry, html);
 					}).on('hover:focus', (event) => {
 						lastFocusTarget = event.target;
 						if (callbacks.onFocus)
-							callbacks.onFocus(element, html);
+							callbacks.onFocus(entry, html);
 						scroll.update($(event.target), true);
 					});
 					if (callbacks.onRender)
-						callbacks.onRender(element, html);
+						callbacks.onRender(entry, html);
 
 					this.contextMenu({
 						html: html,
-						element: element,
+						element: entry,
 						onFile: (call) => {
 							if (callbacks.onContextMenu)
-								callbacks.onContextMenu(element, html, call);
+								callbacks.onContextMenu(entry, html, call);
 						},
 						onClearAllMark: () => {
 							for (let video of videos)
