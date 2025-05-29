@@ -290,7 +290,7 @@
 							return (any ? c.show : (c.show && c.name.toLowerCase() == lastProvider));
 						});
 
-						if (_filter.length) {
+						if (_filter.length !== 0) {
 							red = true;
 							resolve(targetJson.online.filter((c) => {
 								return c.show;
@@ -566,7 +566,7 @@
 		 * @param {PlayData} play
 		 **/
 		this.setDefaultQualityUrl = function (play) {
-			if (Lampa.Arrays.getKeys(play.quality).length) {
+			if (Lampa.Arrays.getKeys(play.quality).length !== 0) {
 				for (const key in play.quality) {
 					const value = play.quality[key];
 					if (parseInt(key) == Lampa.Storage.field('video_quality_default')) {
@@ -702,6 +702,15 @@
 					}
 					case 'similar': {
 						this.activity.loader(false);
+
+						entries.forEach((folder) => {
+							if (folder.details)
+								folder.details.replaceAll('online-prestige-split', 'qwatch-split');
+
+							if (folder.url.indexOf('rjson=') === -1)
+								folder.url += '&rjson=true';
+						});
+
 						this.showSimilars(entries);
 						break;
 					}
@@ -960,9 +969,9 @@
 			});
 			this.saveChoice(choice);
 
-			if (filterItems.season && filterItems.season.length)
+			if (filterItems.season && filterItems.season.length !== 0)
 				addSelection('season', Lampa.Lang.translate('torrent_serial_season'));
-			if (filterItems.voice && filterItems.voice.length)
+			if (filterItems.voice && filterItems.voice.length !== 0)
 				addSelection('voice', Lampa.Lang.translate('torrent_parser_voice'));
 
 			filter.set('filter', selection);
@@ -986,7 +995,7 @@
 			let select = [];
 
 			for (const i in need) {
-				if (filterItems[i] && filterItems[i].length) {
+				if (filterItems[i] && filterItems[i].length !== 0) {
 					if (i == 'voice')
 						select.push(filterTranslation[i] + ': ' + filterItems[i][need[i]]);
 					else if (i !== 'source' && filterItems.season.length !== 0)
