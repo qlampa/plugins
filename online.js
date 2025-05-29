@@ -540,14 +540,14 @@
 		 * @param {Object} file source video file
 		 * @returns {PlayData} player object
 		 **/
-		this.toPlayData = function (file) {
+		this.toPlayData = function (video) {
 			return {
-				title: file.title,
-				url: file.url,
-				quality: file.qualities,
-				timeline: file.timeline,
-				subtitles: file.subtitles,
-				callback: file.markWatched
+				title: video.title,
+				url: video.url,
+				quality: video.qualities,
+				timeline: video.timeline,
+				subtitles: video.subtitles,
+				callback: video.markWatched
 			};
 		};
 		/**
@@ -725,7 +725,7 @@
 		};
 		/**
 		 * show list of the found videos
-		 * @param {{url:string,}[]} videos
+		 * @param {MovieObject[]|EpisodeObject[]} videos
 		 **/
 		this.showVideos = function (videos) {
 			this.drawList(videos, {
@@ -1087,7 +1087,7 @@
 		};
 		/**
 		 * video list render
-		 * @param {Object[]} videos
+		 * @param {MovieObject[]|EpisodeObject[]} videos
 		 * @param {?Object.<Function>} callbacks
 		 **/
 		this.drawList = function(videos, callbacks) {
@@ -1203,8 +1203,6 @@
 				let scrollToMark = null;
 
 				const maxEpisodeNumberLength = videos.length.toString().length;
-				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : 0;
-
 				videos.forEach((entry, index) => {
 					let episode = object.method === 'tv' && episodes.length !== 0 && !callbacks.similars ? episodes.find((e) => {
 						return e.episode_number == entry.episode && e.season_number == seasonNumber;
@@ -1305,15 +1303,18 @@
 						html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 					}
 
+					// max out the timeline
+					entry.maxTimeline = () => {
+						entry.timeline.percent = 100;
+						Lampa.Timeline.update(entry.timeline);
+					};
 					entry.clearTimeline = () => {
 						entry.timeline.percent = 0;
 						entry.timeline.time = 0;
 						entry.timeline.duration = 0;
 						Lampa.Timeline.update(entry.timeline);
 					};
-					/**
-					 * mark video as watched, max out the timeline and save choice
-					 **/
+					// mark video as watched and save choice
 					entry.markWatched = () => {
 						// @note: 'online_view' is internal variable that affects other aspects
 						viewList = Lampa.Storage.cache('online_view', 5000, []);
@@ -1324,10 +1325,6 @@
 							if (html.find('.qwatch-item__watched').length == 0)
 								html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 						}
-
-						// max out the timeline
-						entry.timeline.percent = 100;
-						Lampa.Timeline.update(entry.timeline);
 
 						choice = this.getChoice();
 						if (object.method === 'movie')
@@ -1364,10 +1361,18 @@
 
 					this.contextMenu({
 						html: html,
-						element: entry,
+						entry: entry,
 						onFile: (call) => {
 							if (callbacks.onContextMenu)
 								callbacks.onContextMenu(entry, html, call);
+						},
+						onMarkAllPrevious: (entry) => {
+							const maxIndex = videos.indexOf(entry);
+							for (let i = 0; i < maxIndex; ++i) {
+								let video = videos[i];
+								video.maxTimeline();
+								video.markWatched();
+							}
 						},
 						onClearAllMark: () => {
 							for (let video of videos)
@@ -1375,13 +1380,14 @@
 						},
 						onClearAllTime: () => {
 							for (let video of videos)
-								video.timeclear();
+								video.clearTimeline();
 						}
 					});
 					scroll.append(html);
 				});
 
 				// append ongoing episodes
+				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : 0;
 				if (nextEpisodeToAirNumber && !callbacks.similars) {
 					const episodesToAir = episodes.slice(nextEpisodeToAirNumber);
 					episodesToAir.forEach((episode) => {
@@ -1395,9 +1401,7 @@
 						let daysLeft = 0;
 						if (episode.air_date) {
 							details.push(Lampa.Utils.parseTime(episode.air_date).full);
-
-							let airDate = new Date(episode.air_date.replace(/-/g, '/'));
-							daysLeft = Math.round((airDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+							daysLeft = Math.round((new Date(episode.air_date).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
 						}
 
 						let html = Lampa.Template.get('qwatch_item_full', {
@@ -1406,11 +1410,12 @@
 							details: rating + (details.length !== 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : ''),
 							quality: (daysLeft > 0 ? (Lampa.Lang.translate('full_episode_days_left') + ': ' + daysLeft) : Lampa.Lang.translate('tv_status_post_production'))
 						});
-
 						let loader = html.find('.qwatch__loader');
 						let image = html.find('.qwatch-item__img');
+
 						let season = videos[0] ? videos[0].season : 1;
 						html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(Lampa.Timeline.view(Lampa.Utils.hash([season, episode.episode_number, object.movie.original_title].join('')))));
+
 						let thumbnail = html.find('img')[0];
 						if (episode.still_path) {
 							thumbnail.onerror = () => {
@@ -1448,7 +1453,7 @@
 		};
 		/**
 		 * video context menu
-		 * @param {{html:Object,element:Object,onFile:Function,onClearAllMark:Function,onClearAllTime:Function}} params
+		 * @param {{html:Object,entry:Object,onFile:Function,onMarkAllPrevious:Function,onClearAllMark:Function,onClearAllTime:Function}} params
 		 **/
 		this.contextMenu = function(params) {
 			params.html.on('hover:long', () => {
@@ -1476,15 +1481,18 @@
 					});
 					menu.push({
 						title: Lampa.Lang.translate('torrent_parser_label_title'),
-						onSelect: params.element.markWatched
+						onSelect: () => {
+							params.entry.maxTimeline();
+							params.entry.markWatched();
+						}
 					});
 					menu.push({
 						title: Lampa.Lang.translate('torrent_parser_label_cancel_title'),
-						onSelect: params.element.unmarkWatched
+						onSelect: params.entry.unmarkWatched
 					});
 					menu.push({
 						title: Lampa.Lang.translate('time_reset'),
-						onSelect: params.element.timeclear
+						onSelect: params.entry.clearTimeline
 					});
 					if (extra) {
 						menu.push({
@@ -1492,21 +1500,19 @@
 							copylink: true
 						});
 					}
-					if (window.qwatch_online_context_menu)
-						window.qwatch_online_context_menu.push(menu, extra, params);
 					menu.push({
 						title: Lampa.Lang.translate('more'),
 						separator: true
 					});
-					if (Lampa.Account.logged() && params.element.season !== undefined && params.element.translate_voice) {
+					if (Lampa.Account.logged() && params.entry.season !== undefined && params.entry.translate_voice) {
 						menu.push({
 							title: Lampa.Lang.translate('qwatch_voice_subscribe'),
 							onSelect: () => {
 								Lampa.Account.subscribeToTranslation({
 									card: object.movie,
-									season: params.element.season,
-									episode: params.element.translate_episode_end,
-									voice: params.element.translate_voice
+									season: params.entry.season,
+									episode: params.entry.translate_episode_end,
+									voice: params.entry.translate_voice
 								}, () => {
 									Lampa.Noty.show(Lampa.Lang.translate('qwatch_voice_success'));
 								}, () => {
@@ -1515,6 +1521,10 @@
 							}
 						});
 					}
+					menu.push({
+						title: Lampa.Lang.translate('qwatch_mark_all_previous'),
+						onSelect: () => { params.onMarkAllPrevious(params.entry) }
+					});
 					menu.push({
 						title: Lampa.Lang.translate('qwatch_clear_all_marks'),
 						onSelect: params.onClearAllMark
@@ -1532,10 +1542,6 @@
 							Lampa.Controller.toggle(controllerName);
 						},
 						onSelect: (item) => {
-							// @test: unused
-							if (window.qwatch_online_context_menu)
-								window.qwatch_online_context_menu.onSelect(item, params);
-
 							// process items callbacks
 							if (item.onSelect)
 								item.onSelect();
@@ -1848,6 +1854,12 @@
 				uk: 'Виникла помилка',
 				en: 'An error has occurred',
 				zh: '发生了错误'
+			},
+			qwatch_mark_all_previous: {
+				ru: 'Отметить все предыдущие',
+				//uk: 'Очистити всі мітки',
+				en: 'Mark all previous',
+				//zh: '清除所有标签'
 			},
 			qwatch_clear_all_marks: {
 				ru: 'Очистить все метки',
