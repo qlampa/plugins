@@ -1201,11 +1201,14 @@
 						return e.episode_number == entry.episode && e.season_number == seasonNumber;
 					}) : null;
 
-					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || (object.method === 'tv' ? 'Неизвестно' : entry.translation) || 'Неизвестно';
+					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || entry.translation;
 					if (entry.quality) {
 						entry.qualities = entry.quality;
 						entry.quality = Lampa.Arrays.getKeys(entry.quality)[0];
 					}
+
+					if (entry.translation)
+						entry.title = object.movie.title;
 
 					Lampa.Arrays.extend(entry, {
 						details: voiceName,
@@ -1238,8 +1241,6 @@
 							details.push(Lampa.Utils.parseTime(episode.air_date).full);
 					}
 					else if (isFullWidth) {
-						entry.title = entry.translation || object.movie.title;
-
 						if (object.movie.release_date)
 							details.push(Lampa.Utils.parseTime(object.movie.release_date).full);
 						if (object.movie.tagline && entry.details.length < 32)
