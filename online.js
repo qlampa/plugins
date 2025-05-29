@@ -1201,13 +1201,12 @@
 						return e.episode_number == entry.episode && e.season_number == seasonNumber;
 					}) : null;
 
-					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || entry.translation || '';
+					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || entry.translate || '';
 					if (entry.quality) {
 						entry.qualities = entry.quality;
 						entry.quality = Lampa.Arrays.getKeys(entry.quality)[0];
 					}
-
-					if (entry.translation)
+					if (entry.translate)
 						entry.title = object.movie.title;
 
 					Lampa.Arrays.extend(entry, {
