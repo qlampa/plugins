@@ -1216,7 +1216,7 @@
 						time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true)
 					});
 
-					let hashFile = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title, voiceName].join('') : object.movie.original_title + voiceName);
+					let hashFile = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title, voiceName || ''].join('') : object.movie.original_title + (voiceName || ''));
 					let hashTimeline = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title].join('') : object.movie.original_title);
 
 					if (entry.season && voiceName) {
