@@ -198,7 +198,7 @@
 				network.timeout(10_000);
 				network.silent(hostAddress + 'externalids?id=' + object.movie.id + '&serial=' + (object.method === 'tv' ? 1 : 0), (json) => {
 					for (const name in json) {
-						object.movie[name] = value;
+						object.movie[name] = json[name];
 					}
 
 					tmdbExternalIds();
