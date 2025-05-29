@@ -1201,7 +1201,7 @@
 						return e.episode_number == entry.episode && e.season_number == seasonNumber;
 					}) : null;
 
-					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || entry.translation;
+					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || entry.translation || '';
 					if (entry.quality) {
 						entry.qualities = entry.quality;
 						entry.quality = Lampa.Arrays.getKeys(entry.quality)[0];
@@ -1216,10 +1216,10 @@
 						time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true)
 					});
 
-					let hashFile = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title, voiceName || ''].join('') : object.movie.original_title + (voiceName || ''));
+					let hashFile = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title, voiceName].join('') : object.movie.original_title + voiceName);
 					let hashTimeline = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title].join('') : object.movie.original_title);
 
-					if (entry.season && voiceName) {
+					if (entry.season && voiceName.length !== 0) {
 						entry.translate_episode_end = this.getLastEpisode(videos);
 						entry.translate_voice = voiceName;
 					}
