@@ -65,13 +65,13 @@
 	}
 
 	function addAccountParams(url) {
-		if (url.indexOf('account_email=') == -1) {
+		if (url.indexOf('account_email=') === -1) {
 			let email = Lampa.Storage.get('account_email');
 			if (email)
 				url = Lampa.Utils.addUrlComponent(url, 'account_email=' + encodeURIComponent(email));
 		}
 
-		if (url.indexOf('uid=') == -1) {
+		if (url.indexOf('uid=') === -1) {
 			let uid = Lampa.Storage.get('lampac_unic_id', '');
 			if (!uid) {
 				uid = Lampa.Utils.uid(8).toLowerCase();
@@ -165,8 +165,8 @@
 			voice: []
 		};
 
-		function getProviderName(entryJson) {
-			return (entryJson["balanser"] || entryJson["name"].split(' ')[0]).toLowerCase();
+		function getProviderName(json) {
+			return (json["balanser"] || json["name"].split(' ')[0]).toLowerCase();
 		}
 
 		this.rch = function (json, noReset) {
@@ -235,7 +235,7 @@
 			query.push('source=' + (object.movie.source || 'tmdb'));
 			query.push('clarification=' + (object.clarification ? 1 : 0));
 			const accountEmail = Lampa.Storage.get('account_email', '');
-			if (accountEmail.length > 0)
+			if (accountEmail.length !== 0)
 				query.push('cub_id=' + Lampa.Utils.hash(accountEmail));
 			query.push('rchtype=' + (window.rch ? window.rch.type : ''));
 			query.push('similar=' + (object.similar ? true : false));
@@ -246,7 +246,7 @@
 			if (providersLast[object.movie.id])
 				return providersLast[object.movie.id];
 			else
-				return Lampa.Storage.get('online_balanser', filterSources.length > 0 ? filterSources[0] : '');
+				return Lampa.Storage.get('online_balanser', filterSources.length !== 0 ? filterSources[0] : '');
 		};
 		this.startSource = function (sourcesJson) {
 			return new Promise((resolve, reject) => {
@@ -260,7 +260,7 @@
 				};
 
 				filterSources = Lampa.Arrays.getKeys(providersAlive);
-				if (filterSources.length > 0) {
+				if (filterSources.length !== 0) {
 					if (providersLast[object.movie.id])
 						providerActive = providersLast[object.movie.id];
 					else
@@ -306,7 +306,7 @@
 					life_wait_times++;
 					filterSources = [];
 					providersAlive = {};
-					lifeSourcesJson.online.forEach((entry) => {
+					lifeSourcesJson["online"].forEach((entry) => {
 						const providerName = getProviderName(entry);
 						providersAlive[providerName] = {
 							url: entry.url,
@@ -348,23 +348,23 @@
 		this.createSource = function () {
 			return new Promise((resolve, reject) => {
 				network.timeout(15_000);
-				network.silent(this.addLampacParams(hostAddress + 'lite/events?life=true'), (targetJson) => {
-					if (targetJson["accsdb"])
-						return reject(targetJson);
+				network.silent(this.addLampacParams(hostAddress + 'lite/events?life=true'), (response) => {
+					if (response["accsdb"])
+						return reject(response);
 
-					if (targetJson["life"]) {
-						this.memkey = targetJson["memkey"];
-						if (targetJson["title"]) {
+					if (response["life"]) {
+						this.memkey = response["memkey"];
+						if (response["title"]) {
 							if (object.movie.name)
-								object.movie.name = targetJson["title"];
+								object.movie.name = response["title"];
 							else if (object.movie.title)
-								object.movie.title = targetJson["title"];
+								object.movie.title = response["title"];
 						}
 						filter.render().find('.filter--sort').append('<span class="qwatch-provider-loader" style="width: 1.2em; height: 1.2em; margin-top: 0; background: url(./img/loader.svg) no-repeat 50% 50%; background-size: contain; margin-left: 0.5em"></span>');
 						this.lifeSource().then(this.startSource).then(resolve).catch(reject);
 					}
 					else
-						this.startSource(targetJson).then(resolve).catch(reject);
+						this.startSource(response).then(resolve).catch(reject);
 				}, reject);
 			});
 		};
@@ -498,49 +498,6 @@
 			else
 				this.showEmptyPage();
 		};
-		/**
-		 * parse html page into json array
-		 * @param {string} htmlData 
-		 * @param {string} className 
-		 * @returns {{method:string, url:?string, img:?string, similar:?boolean, year:?number, quality:?Object.<string, string>, episode:?number, season:?number, title:?string, text:?string, vast_url:?string, vast_msg:?string, active:?boolean}[]}
-		 **/
-		this.parseVideosHtml = function (htmlData, className) {
-			try {
-				let html = $('<div>' + htmlData + '</div>');
-				let elements = [];
-				html.find(className).each(function () {
-					let htmlItem = $(this);
-					let data = JSON.parse(htmlItem.attr('data-json'));
-					let season = htmlItem.attr('s');
-					let episode = htmlItem.attr('e');
-					let text = htmlItem.text();
-					if (!object.movie.name) {
-						if (text.match(/\d+p/i)) {
-							if (!data.quality) {
-								data.quality = {};
-								data.quality[text] = data.url;
-							}
-							text = object.movie.title;
-						}
-						if (text == 'По умолчанию') {
-							text = object.movie.title;
-						}
-					}
-					if (episode)
-						data.episode = parseInt(episode);
-					if (season)
-						data.season = parseInt(season);
-					if (text)
-						data.text = text;
-					data.active = htmlItem.hasClass('active');
-					elements.push(data);
-				});
-				return elements;
-			}
-			catch (err) {
-				return [];
-			}
-		};
 		// @todo: rework and optimize asap
 		this.requestVideoData = function (file, call) {
 			if (Lampa.Storage.field('player') !== 'inner' && file.stream && Lampa.Platform.is('apple')) {
@@ -623,10 +580,11 @@
 		};
 		/**
 		 * parse information of the requested videos
+		 * @typedef {{method: string, url:string, name:string, active:boolean}} VoiceObject
 		 * @typedef {{method:string, url:string, title:?string, quality:?Object.<string, string>[], maxquality:?string, translate:?string, vast_url:?string, vast_msg:?string}} MovieObject
 		 * @typedef {{method:string, url:string, stream:?string, title:?string, name:?string, season:number, episode:number, vast_url:?string, vast_msg:?string}} EpisodeObject
 		 * @typedef {{url:string, title:?string, img:?string, details:?string, year:?string}} SimilarObject
-		 * @param {{type:string, voice:?{method: string, url:string, name:string, active:boolean}[], data:MovieObject[]|EpisodeObject[]|SimilarObject[]}} data 
+		 * @param {{type:string, voice:?VoiceObject[], data:MovieObject[]|EpisodeObject[]|SimilarObject[]}} data 
 		 **/
 		this.parseVideosData = function(data) {
 			let json = (Lampa.Arrays.isObject(data) && data.rch) ? data : Lampa.Arrays.decodeJson(data, {});
@@ -676,18 +634,18 @@
 
 						// remap season and episode keys
 						entries.forEach((episode) => {
-							episode["season"] = episode["s"];
-							delete episode["s"];
-							episode["episode"] = episode["e"];
-							delete episode["e"];
+							episode.season = episode.s;
+							delete episode.s;
+							episode.episode = episode.e;
+							delete episode.e;
 						});
 
-						const voices = json["voice"];
+						const voices = json.voice;
 						if (voices) {
 							filterFound.voice = voices.map((voice) => {
 								return {
-									url: voice["url"],
-									title: voice["text"]
+									url: voice.url,
+									title: voice.name
 								};
 							});
 
@@ -696,34 +654,34 @@
 							const selectedVoiceName = choice.voice_name;
 
 							const foundVoiceUrl = voices.find((voice) => {
-								return voice["url"] == selectedVoiceUrl;
+								return voice.url == selectedVoiceUrl;
 							});
 							const foundVoiceName = voices.find((voice) => {
-								return voice["name"] == selectedVoiceName;
+								return voice.name == selectedVoiceName;
 							});
 							const foundVoiceActive = voices.find((voice) => {
-								return voice["active"];
+								return voice.active;
 							});
 
 							if (foundVoiceUrl && !foundVoiceUrl.active) {
 								this.replaceChoice({
 									voice: voices.indexOf(foundVoiceUrl),
-									voice_name: foundVoiceUrl["name"]
+									voice_name: foundVoiceUrl.name
 								});
 								this.request(foundVoiceUrl.url);
 							}
 							else if (foundVoiceName && !foundVoiceName.active) {
 								this.replaceChoice({
 									voice: voices.indexOf(foundVoiceName),
-									voice_name: foundVoiceName["name"]
+									voice_name: foundVoiceName.name
 								});
-								this.request(foundVoiceName["url"]);
+								this.request(foundVoiceName.url);
 							}
 							else {
 								if (foundVoiceActive) {
 									this.replaceChoice({
 										voice: voices.indexOf(foundVoiceActive),
-										voice_name: foundVoiceActive["name"]
+										voice_name: foundVoiceActive.name
 									});
 								}
 
@@ -830,7 +788,7 @@
 								playlist.push(playCell);
 							});
 
-							if (playlist.length > 1)
+							if (playlist.length !== 0)
 								playData.playlist = playlist;
 						}
 						else
@@ -898,7 +856,7 @@
 
 				folderElement.on('hover:enter', () => {
 					this.resetPage();
-					this.request(folder["url"]);
+					this.request(folder.url);
 					// @todo: on back, back to folders list
 				}).on('hover:focus', (event) => {
 					lastFocusTarget = event.target;
@@ -1031,7 +989,7 @@
 				if (filterItems[i] && filterItems[i].length) {
 					if (i == 'voice')
 						select.push(filterTranslation[i] + ': ' + filterItems[i][need[i]]);
-					else if (i !== 'source' && filterItems.season.length >= 1)
+					else if (i !== 'source' && filterItems.season.length !== 0)
 						select.push(filterTranslation.season + ': ' + filterItems[i][need[i]]);
 				}
 			}
@@ -1181,7 +1139,7 @@
 							details.push(Lampa.Utils.parseTime(episode.air_date).full);
 						if (element.details)
 							details.push(element.details);
-						element.details = rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
+						element.details = rating + (details.length !== 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
 
 
 					});
@@ -1189,15 +1147,15 @@
 			}
 			else {
 				videos.forEach((element, index) => {
-					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || element.voice_name || element.text;
+					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || element.voice_name || element.translation;
 
 					if (element.quality) {
 						element.qualities = element.quality;
 						element.quality = Lampa.Arrays.getKeys(element.quality)[0];
 					}
 					// replace title with extra info
-					if (element.text)
-						element.title = element.text;
+					if (element.translation)
+						element.title = element.translation;
 
 					Lampa.Arrays.extend(element, {
 						voice_name: voiceName,
@@ -1219,7 +1177,7 @@
 						details.push(object.movie.tagline);
 					if (element.details)
 						details.push(element.details);
-					element.details = (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
+					element.details = (details.length !== 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
 				});
 			}*/
 			
@@ -1239,11 +1197,11 @@
 				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : 0;
 
 				videos.forEach((entry, index) => {
-					let episode = object.method === 'tv' && episodes.length && !callbacks.similars ? episodes.find((e) => {
+					let episode = object.method === 'tv' && episodes.length !== 0 && !callbacks.similars ? episodes.find((e) => {
 						return e.episode_number == entry.episode && e.season_number == seasonNumber;
 					}) : null;
 
-					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || (object.method === 'tv' ? 'Неизвестно' : entry.text) || 'Неизвестно';
+					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || (object.method === 'tv' ? 'Неизвестно' : entry.translation) || 'Неизвестно';
 					if (entry.quality) {
 						entry.qualities = entry.quality;
 						entry.quality = Lampa.Arrays.getKeys(entry.quality)[0];
@@ -1262,8 +1220,6 @@
 						entry.translate_episode_end = this.getLastEpisode(videos);
 						entry.translate_voice = voiceName;
 					}
-					if (entry.text && !episode)
-						entry.title = entry.text;
 
 					// @todo: when video switched via external player it's not marked as watched | add listener to timeline 'update' event / overload 'timeline.handler' | or add listener to playlist 'select' event, must cause less overhead
 					entry.timeline = Lampa.Timeline.view(hashTimeline);
@@ -1282,6 +1238,8 @@
 							details.push(Lampa.Utils.parseTime(episode.air_date).full);
 					}
 					else if (isFullWidth) {
+						entry.title = entry.translation || object.movie.title;
+
 						if (object.movie.release_date)
 							details.push(Lampa.Utils.parseTime(object.movie.release_date).full);
 						if (object.movie.tagline && entry.details.length < 32)
@@ -1289,7 +1247,7 @@
 					}
 					if (entry.details)
 						details.push(entry.details);
-					entry.details = rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
+					entry.details = rating + (details.length !== 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
 
 					let html = Lampa.Template.get('qwatch_item_full', entry);
 					// set scroll target
@@ -1436,7 +1394,7 @@
 						let html = Lampa.Template.get('qwatch_item_full', {
 							title: episode.name,
 							time: Lampa.Utils.secondsToTime(episode.runtime * 60, true),
-							details: rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : ''),
+							details: rating + (details.length !== 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : ''),
 							quality: (daysLeft > 0 ? (Lampa.Lang.translate('full_episode_days_left') + ': ' + daysLeft) : Lampa.Lang.translate('tv_status_post_production'))
 						});
 
@@ -1734,7 +1692,7 @@
 			search: (params, onComplete) => {
 				function searchComplite(links) {
 					let keys = Lampa.Arrays.getKeys(links);
-					if (keys.length > 0) {
+					if (keys.length !== 0) {
 						let status = new Lampa.Status(keys.length);
 						status.onComplite = (result) => {
 							let rows = [];
@@ -1964,7 +1922,7 @@
 		$('body').append(Lampa.Template.get('qwatch_css', {}, true));
 
 		Lampa.Listener.add('full', (event) => {
-			if (event.type != 'complite')
+			if (event.type !== 'complite')
 				return;
 
 			// render button
@@ -1975,7 +1933,7 @@
 				'</div>'));
 			let render = event.object.activity.render();
 			let torrentButton = render.find('.view--torrent');
-			if (torrentButton.length > 0)
+			if (torrentButton.length !== 0)
 				torrentButton.before(onlineButton);
 			else
 				render.find('.full-start__button:last').after(onlineButton);
