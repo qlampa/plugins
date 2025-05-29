@@ -179,18 +179,30 @@
 		};
 		this.requestExternalIds = function () {
 			return new Promise((resolve, reject) => {
-				// try to pull external ids via TMDB
-				network.timeout(10_000);
-				network.silent(Lampa.TMDB.api(object.method + '/' + object.movie.id + '/external_ids?api_key=' + Lampa.TMDB.key()), (json) => {
-					for (const name in json) {
-						const value = json[name];
+				const tmdbExternalIds = () => {
+					// try to pull external ids via TMDB
+					network.timeout(10_000);
+					network.silent(Lampa.TMDB.api(object.method + '/' + object.movie.id + '/external_ids?api_key=' + Lampa.TMDB.key()), (json) => {
+						for (const name in json) {
+							const value = json[name];
 
-						if (value)
-							object.movie[name] = value;
+							if (value)
+								object.movie[name] = value;
+						}
+
+						resolve();
+					}, resolve);
+				};
+
+				// try to pull external ids via primary
+				network.timeout(10_000);
+				network.silent(hostAddress + 'externalids?id=' + object.movie.id + '&serial=' + (object.method === 'tv' ? 1 : 0), (json) => {
+					for (const name in json) {
+						object.movie[name] = value;
 					}
 
-					resolve();
-				}, resolve);
+					tmdbExternalIds();
+				}, tmdbExternalIds);
 			});
 		};
 		this.updateProvider = function (providerName) {
