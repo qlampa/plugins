@@ -829,6 +829,7 @@
 		};
 		this.showSimilars = function(similars) {
 			scroll.clear();
+
 			similars.forEach((folder) => {
 				folder.title = folder.text;
 				folder.details = '';
@@ -862,6 +863,7 @@
 				folderElement.on('hover:enter', () => {
 					this.resetPage();
 					this.request(folder.url);
+					// @todo: on back, back to folders list
 				}).on('hover:focus', (event) => {
 					lastFocusTarget = event.target;
 					scroll.update($(event.target), true);
@@ -1009,7 +1011,7 @@
 		this.requestEpisodes = function(season, callback) {
 			let episodes = [];
 
-			// @todo: shitty workaround cuz tmdb doesnt group anime by seasons properly, in same time tvdb does, but have less general information | probably better way would be to use shikimori api for animes and tmdb for everything else
+			// @todo: shitty workaround cuz tmdb doesnt group anime by seasons properly, in same time tvdb does, but have less general information | probably better way would be to use jikan.moe/myanimelist/shikimori api for animes and tmdb for everything else
 			if (object.method === 'tv' && typeof object.movie.id == 'number') {
 				network.timeout(15_000);
 				network.native(Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru')), (tmdbResponse) => {
@@ -1089,9 +1091,6 @@
 			callbacks = callbacks || {};
 			if (!videos.length)
 				return this.showEmptyPage();
-
-			scroll.clear();
-			this.setLoading(true);
 
 			/*
 			let viewList = Lampa.Storage.cache('online_view', 5000, []);
@@ -1191,7 +1190,7 @@
 			// @note: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
 			const seasonNumber = videos[0].season;
 			this.requestEpisodes(seasonNumber, (episodes) => {
-				this.setLoading(false);
+				scroll.clear();
 
 				let viewList = Lampa.Storage.cache('online_view', 5000, []);
 				let choice = this.getChoice();
@@ -1560,6 +1559,7 @@
 			html.find('.qwatch-empty__buttons').remove();
 			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('empty_title_two'));
 			html.find('.qwatch-empty__time').text(Lampa.Lang.translate('empty_text'));
+
 			scroll.clear();
 			scroll.append(html);
 			this.setLoading(false);
@@ -1569,6 +1569,7 @@
 			html.find('.qwatch-empty__buttons').remove();
 			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('title_error'));
 			html.find('.qwatch-empty__time').text(err && err["accsdb"] ? err["msg"] : Lampa.Lang.translate('qwatch_provider_no_results').replace('{provider}', providersAlive[providerActive].name));
+
 			scroll.clear();
 			scroll.append(html);
 			this.setLoading(false);
@@ -1583,22 +1584,26 @@
 			if (err && err["accsdb"])
 				html.find('.qwatch-empty__title').html(err["msg"]);
 
-			let tic = err && err["accsdb"] ? 10 : 5;
 			html.find('.cancel').on('hover:enter', () => {
 				clearInterval(providerTimer);
+				html.find('.qwatch-empty__time').remove();
+				html.find('.cancel').remove();
 			});
+			// @todo: show reset filter button?
 			html.find('.change').on('hover:enter', () => {
 				clearInterval(providerTimer);
 				filter.render().find('.filter--sort').trigger('hover:enter');
 			});
+
 			scroll.clear();
 			scroll.append(html);
-
 			this.setLoading(false);
+
+			let secondsLeft = err && err["accsdb"] ? 10 : 5;
 			providerTimer = setInterval(() => {
-				tic--;
-				html.find('.timeout').text(tic);
-				if (tic == 0) {
+				secondsLeft--;
+				html.find('.timeout').text(secondsLeft);
+				if (secondsLeft == 0) {
 					clearInterval(providerTimer);
 					let keys = Lampa.Arrays.getKeys(providersAlive);
 					let next = keys[keys.indexOf(providerActive) + 1];
