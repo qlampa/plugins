@@ -1896,10 +1896,19 @@
 			}
 		}
 
-		let vastScript = document.querySelector('script[src="' + Lampa.Manifest.cub_domain + '/plugin/vast' + '"]');
+		let vastScript = document.body.querySelector('script[src="' + Lampa.Manifest.cub_domain + '/plugin/vast' + '"]');
 		if (vastScript)
 			vastScript.remove();
 	}
+
+		document.body.createElement = new Proxy(document.body.createElement, {
+		apply(target, thisArg, args) {
+			if (args[0] === 'script') {
+				console.log('1', 'sc');
+			}
+			return target.apply(thisArg, args);
+		}
+	});
 
 	// catch creation of preroll ads video
 	document.createElement = new Proxy(document.createElement, {
