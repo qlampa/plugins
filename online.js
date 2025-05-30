@@ -1109,9 +1109,9 @@
 				this.requestEpisodes(Math.min(videos[0].season, object.number_of_seasons), (episodes) => {
 					const maxEpisodeNumberLength = videos.length.toString().length;
 					videos.forEach((element, index) => {
-						let episode = episodes.length && !callbacks.similars ? episodes.find((e) => {
+						let episode = episodes.find((e) => {
 							return e.episode_number == element.episode;
-						}) : false;
+						});
 
 						let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || element.voice_name;
 
@@ -1204,11 +1204,11 @@
 
 				const maxEpisodeNumberLength = videos.length.toString().length;
 				videos.forEach((entry, index) => {
-					let episode = object.method === 'tv' && episodes.length !== 0 && !callbacks.similars ? episodes.find((e) => {
+					let episode = episodes.find((e) => {
 						return e.episode_number == entry.episode && e.season_number == seasonNumber;
-					}) : null;
+					});
 
-					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || entry.translate || '';
+					const voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || entry.translate || '';
 					if (entry.quality) {
 						entry.qualities = entry.quality;
 						entry.quality = Lampa.Arrays.getKeys(entry.quality)[0];
@@ -1222,8 +1222,8 @@
 						time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true)
 					});
 
-					let hashFile = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title, voiceName].join('') : object.movie.original_title + voiceName);
-					let hashTimeline = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title].join('') : object.movie.original_title);
+					const hashFile = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title, voiceName].join('') : object.movie.original_title + voiceName);
+					const hashTimeline = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title].join('') : object.movie.original_title);
 
 					if (entry.season && voiceName.length !== 0) {
 						entry.translate_episode_end = this.getLastEpisode(videos);
@@ -1387,9 +1387,9 @@
 				});
 
 				// append ongoing episodes
-				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : 0;
-				if (nextEpisodeToAirNumber && !callbacks.similars) {
-					const episodesToAir = episodes.slice(nextEpisodeToAirNumber);
+				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : -1;
+				if (nextEpisodeToAirNumber) {
+					const episodesToAir = episodes.slice(nextEpisodeToAirNumber - 1);
 					episodesToAir.forEach((episode) => {
 						let details = [];
 						let rating = '';
@@ -1413,8 +1413,9 @@
 						let loader = html.find('.qwatch__loader');
 						let image = html.find('.qwatch-item__img');
 
-						let season = videos[0] ? videos[0].season : 1;
-						html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(Lampa.Timeline.view(Lampa.Utils.hash([season, episode.episode_number, object.movie.original_title].join('')))));
+						const season = videos[0].season;
+						const hashTimeline = Lampa.Utils.hash([season, season > 10 ? ':' : '', episode.episode_number, object.movie.original_title].join(''));
+						html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(Lampa.Timeline.view(hashTimeline)));
 
 						let thumbnail = html.find('img')[0];
 						if (episode.still_path) {
@@ -1628,7 +1629,7 @@
 			let lastEpisode = 0;
 			for (let video of videos) {
 				if (video.episode !== undefined)
-					lastEpisode = Math.max(lastEpisode, parseInt(video.episode));
+					lastEpisode = Math.max(lastEpisode, video.episode);
 			}
 			return lastEpisode;
 		};
@@ -1643,7 +1644,7 @@
 			Lampa.Controller.add('content', {
 				toggle: () => {
 					Lampa.Controller.collectionSet(scroll.render(), explorer.render());
-					Lampa.Controller.collectionFocus(lastFocusTarget || false, scroll.render());
+					Lampa.Controller.collectionFocus(lastFocusTarget || null, scroll.render());
 				},
 				gone: () => {
 					clearTimeout(providerTimer);
@@ -1699,107 +1700,6 @@
 		};
 	}
 
-	/*function addSourceSearch(spiderName, spiderUri) {
-		let network = new Lampa.Reguest();
-
-		let source = {
-			title: spiderName,
-			search: (params, onComplete) => {
-				function searchComplite(links) {
-					let keys = Lampa.Arrays.getKeys(links);
-					if (keys.length !== 0) {
-						let status = new Lampa.Status(keys.length);
-						status.onComplite = (result) => {
-							let rows = [];
-
-							keys.forEach((name) => {
-								let line = result[name];
-
-								if (line && line.data && line.type == 'similar') {
-									let cards = line.data.map((item) => {
-										item.title = Lampa.Utils.capitalizeFirstLetter(item.title);
-										item.release_date = item.year || '0000';
-										item.provider = spiderUri;
-										if (item.img !== undefined) {
-											if (item.img.charAt(0) === '/')
-												item.img = hostAddress + item.img.substring(1);
-											if (item.img.indexOf('/proxyimg') !== -1)
-												item.img = addAccountParams(item.img);
-										}
-
-										return item;
-									});
-
-									rows.push({
-										title: name,
-										results: cards
-									});
-								}
-							})
-
-							onComplete(rows);
-						}
-
-						keys.forEach((name) => {
-							network.silent(links[name], (response) => {
-								status.append(name, response);
-							}, () => {
-								status.error();
-							})
-						})
-					}
-					else
-						onComplete([]);
-				}
-
-				network.silent(hostAddress + 'lite/' + spiderUri + '?title=' + params.query, (response) => {
-					if (response.rch) {
-						rchRun(response, () => {
-							network.silent(hostAddress + 'lite/' + spiderUri + '?title=' + params.query, (links) => {
-								searchComplite(links);
-							}, () => {
-								onComplete([]);
-							});
-						});
-					}
-					else
-						searchComplite(response);
-				}, () => {
-					onComplete([]);
-				});
-			},
-			onCancel: () => {
-				network.clear()
-			},
-			params: {
-				lazy: true,
-				align_left: true,
-				card_events: {
-					onMenu: () => { }
-				}
-			},
-			onMore: (params, close) => {
-				close();
-			},
-			onSelect: (params, close) => {
-				close();
-
-				Lampa.Activity.push({
-					url: params.element.url,
-					title: 'QWatch - ' + params.element.title,
-					component: 'qwatch',
-					movie: params.element,
-					search: params.element.title,
-					clarification: true,
-					provider: params.element.provider,
-					noinfo: true
-				});
-			}
-		}
-
-		Lampa.Search.addSource(source);
-	}*/
-
 	function startPlugin() {
 		window.plugin_qwatch_ready = true;
 
@@ -1814,81 +1714,75 @@
 
 		Lampa.Lang.add({
 			qwatch_title: {
+				en: 'Online',
 				ru: 'Онлайн',
 				uk: 'Онлайн',
-				en: 'Online',
 				zh: '在线的'
 			},
 			qwatch_video: {
-				ru: 'Видео',
 				en: 'Video',
+				ru: 'Видео',
 				uk: 'Відео',
 				zh: '视频'
 			},
-			qwatch_no_watch_history: {
-				ru: 'Нет истории просмотра',
-				en: 'No browsing history',
-				ua: 'Немає історії перегляду',
-				zh: '没有浏览历史'
-			},
 			qwatch_no_link: {
+				en: 'Failed to fetch link',
 				ru: 'Не удалось извлечь ссылку',
 				uk: 'Неможливо отримати посилання',
-				en: 'Failed to fetch link',
 				zh: '获取链接失败'
 			},
 			qwatch_voice_subscribe: {
+				en: 'Subscribe to translation',
 				ru: 'Подписаться на перевод',
 				uk: 'Підписатися на переклад',
-				en: 'Subscribe to translation',
 				zh: '订阅翻译'
 			},
 			qwatch_voice_success: {
+				en: 'You have successfully subscribed',
 				ru: 'Вы успешно подписались',
 				uk: 'Ви успішно підписалися',
-				en: 'You have successfully subscribed',
 				zh: '您已成功订阅'
 			},
 			qwatch_voice_error: {
+				en: 'An error has occurred',
 				ru: 'Возникла ошибка',
 				uk: 'Виникла помилка',
-				en: 'An error has occurred',
 				zh: '发生了错误'
 			},
 			qwatch_mark_all_previous: {
-				ru: 'Отметить все предыдущие',
-				//uk: 'Очистити всі мітки',
 				en: 'Mark all previous',
-				//zh: '清除所有标签'
+				ru: 'Отметить все предыдущие',
+				uk: 'Відзначити усі попередні',
+				zh: '标记所有先前'
 			},
 			qwatch_clear_all_marks: {
+				en: 'Clear all labels',
 				ru: 'Очистить все метки',
 				uk: 'Очистити всі мітки',
-				en: 'Clear all labels',
 				zh: '清除所有标签'
 			},
 			qwatch_clear_all_timecodes: {
+				en: 'Clear all timecodes',
 				ru: 'Очистить все тайм-коды',
 				uk: 'Очистити всі тайм-коди',
-				en: 'Clear all timecodes',
 				zh: '清除所有时间代码'
 			},
 			qwatch_source_change: {
+				en: 'Change source',
 				ru: 'Изменить источник',
 				uk: 'Змінити балансер',
-				en: 'Change source',
 				zh: '更改平衡器'
 			},
 			qwatch_provider_timeout: {
+				en: 'The source will be switched automatically after <span class="timeout">10</span> seconds.',
 				ru: 'Источник будет переключен автоматически через <span class="timeout">10</span> секунд.',
 				uk: 'Джерело буде автоматично переключено через <span class="timeout">10</span> секунд.',
-				en: 'The source will be switched automatically after <span class="timeout">10</span> seconds.',
 				zh: '平衡器将在<span class="timeout">10</span>秒内自动切换。'
 			},
 			qwatch_provider_no_results: {
+				en: 'Search on "{provider}" did not return any results',
 				ru: 'Поиск на "{provider}" не дал результатов',
 				uk: 'Пошук на "{provider}" не дав результатів',
-				en: 'Search on "{provider}" did not return any results',
 				zh: '搜索 "{provider}" 未返回任何结果'
 			}
 		});
@@ -1950,14 +1844,11 @@
 			let onlineButton = $(Lampa.Lang.translate(
 				'<div class="full-start__button selector view--qwatch" data-subtitle="' + manifest.name + ' ' + manifest.version + '">' +
 				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="currentColor" fill-rule="evenodd" d="M3.07 6a8.025 8.025 0 014.262-3.544A12.802 12.802 0 005.595 6H3.07zm-.818 2A8.015 8.015 0 002 10c0 .69.088 1.36.252 2h2.89A13.886 13.886 0 015 10c0-.704.051-1.371.143-2H2.252zm4.916 0C7.06 8.62 7 9.286 7 10c0 .713.061 1.38.168 2h5.664c.107-.62.168-1.287.168-2 0-.714-.061-1.38-.168-2H7.168zm7.69 0c.09.629.142 1.296.142 2s-.051 1.371-.143 2h2.891c.165-.64.252-1.31.252-2s-.087-1.36-.252-2h-2.89zm2.072-2h-2.525a12.805 12.805 0 00-1.737-3.544A8.025 8.025 0 0116.93 6zm-4.638 0H7.708c.324-.865.725-1.596 1.124-2.195.422-.633.842-1.117 1.168-1.452.326.335.746.82 1.168 1.452.4.599.8 1.33 1.124 2.195zm-1.124 10.195c.4-.599.8-1.33 1.124-2.195H7.708c.324.865.725 1.596 1.124 2.195.422.633.842 1.117 1.168 1.452.326-.335.746-.82 1.168-1.452zM3.07 14h2.525a12.802 12.802 0 001.737 3.544A8.025 8.025 0 013.07 14zm9.762 3.305a12.9 12.9 0 01-.164.24A8.025 8.025 0 0016.93 14h-2.525a12.805 12.805 0 01-1.573 3.305zM20 10c0 5.52-4.472 9.994-9.99 10h-.022C4.47 19.994 0 15.519 0 10 0 4.477 4.477 0 10 0s10 4.477 10 10z"/></svg>' +
-				'<span>#{qwatch_title}</span>' +
+				'<span> #{qwatch_title} </span>' +
 				'</div>'));
+
 			let render = event.object.activity.render();
-			let torrentButton = render.find('.view--torrent');
-			if (torrentButton.length !== 0)
-				torrentButton.before(onlineButton);
-			else
-				render.find('.full-start__button:last').after(onlineButton);
+			render.find('.view--torrent').before(onlineButton);
 
 			// register button action
 			onlineButton.on('hover:enter', () => {
