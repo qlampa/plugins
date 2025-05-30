@@ -746,6 +746,8 @@
 						// prevent preroll ads
 						playData.vast_url = '';//json.vast_url;
 						playData.vast_msg = '';//json.vast_msg;
+						if (video.timeline.percent > 0)
+							playData.position = video.timeline.time;
 						this.setReserveUrl(playData);
 						this.setDefaultQualityUrl(playData);
 
@@ -1723,7 +1725,7 @@
 		// register css styles
 		Lampa.Template.add('qwatch_css',
 			'<style>' +
-			'@charset \'UTF-8\';' +
+			'@charset "UTF-8";' +
 			'.torrent-item--qwatch{padding:unset !important;display:-webkit-box;display:-webkit-flex;display:-moz-box;display:-ms-flexbox;display:flex}' +
 			'.torrent-item--qwatch .qwatch-split{font-size:.8em;margin:0 .5em;-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
 			'.qwatch-item__body{padding:1.2em;line-height:1.3;-webkit-box-flex:1;-webkit-flex-grow:1;-moz-box-flex:1;-ms-flex-positive:1;flex-grow:1;position:relative}' +
@@ -1776,99 +1778,99 @@
 			// render button
 			let onlineButton = $(Lampa.Lang.translate(
 				'<div class="full-start__button selector view--qwatch" data-subtitle="' + manifest.name + ' ' + manifest.version + '">' +
-				'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="currentColor" fill-rule="evenodd" d="M3.07 6a8.025 8.025 0 014.262-3.544A12.802 12.802 0 005.595 6H3.07zm-.818 2A8.015 8.015 0 002 10c0 .69.088 1.36.252 2h2.89A13.886 13.886 0 015 10c0-.704.051-1.371.143-2H2.252zm4.916 0C7.06 8.62 7 9.286 7 10c0 .713.061 1.38.168 2h5.664c.107-.62.168-1.287.168-2 0-.714-.061-1.38-.168-2H7.168zm7.69 0c.09.629.142 1.296.142 2s-.051 1.371-.143 2h2.891c.165-.64.252-1.31.252-2s-.087-1.36-.252-2h-2.89zm2.072-2h-2.525a12.805 12.805 0 00-1.737-3.544A8.025 8.025 0 0116.93 6zm-4.638 0H7.708c.324-.865.725-1.596 1.124-2.195.422-.633.842-1.117 1.168-1.452.326.335.746.82 1.168 1.452.4.599.8 1.33 1.124 2.195zm-1.124 10.195c.4-.599.8-1.33 1.124-2.195H7.708c.324.865.725 1.596 1.124 2.195.422.633.842 1.117 1.168 1.452.326-.335.746-.82 1.168-1.452zM3.07 14h2.525a12.802 12.802 0 001.737 3.544A8.025 8.025 0 013.07 14zm9.762 3.305a12.9 12.9 0 01-.164.24A8.025 8.025 0 0016.93 14h-2.525a12.805 12.805 0 01-1.573 3.305zM20 10c0 5.52-4.472 9.994-9.99 10h-.022C4.47 19.994 0 15.519 0 10 0 4.477 4.477 0 10 0s10 4.477 10 10z"/></svg>' +
-				'<span> #{qwatch_title} </span>' +
+					'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="currentColor" fill-rule="evenodd" d="M3.07 6a8.025 8.025 0 014.262-3.544A12.802 12.802 0 005.595 6H3.07zm-.818 2A8.015 8.015 0 002 10c0 .69.088 1.36.252 2h2.89A13.886 13.886 0 015 10c0-.704.051-1.371.143-2H2.252zm4.916 0C7.06 8.62 7 9.286 7 10c0 .713.061 1.38.168 2h5.664c.107-.62.168-1.287.168-2 0-.714-.061-1.38-.168-2H7.168zm7.69 0c.09.629.142 1.296.142 2s-.051 1.371-.143 2h2.891c.165-.64.252-1.31.252-2s-.087-1.36-.252-2h-2.89zm2.072-2h-2.525a12.805 12.805 0 00-1.737-3.544A8.025 8.025 0 0116.93 6zm-4.638 0H7.708c.324-.865.725-1.596 1.124-2.195.422-.633.842-1.117 1.168-1.452.326.335.746.82 1.168 1.452.4.599.8 1.33 1.124 2.195zm-1.124 10.195c.4-.599.8-1.33 1.124-2.195H7.708c.324.865.725 1.596 1.124 2.195.422.633.842 1.117 1.168 1.452.326-.335.746-.82 1.168-1.452zM3.07 14h2.525a12.802 12.802 0 001.737 3.544A8.025 8.025 0 013.07 14zm9.762 3.305a12.9 12.9 0 01-.164.24A8.025 8.025 0 0016.93 14h-2.525a12.805 12.805 0 01-1.573 3.305zM20 10c0 5.52-4.472 9.994-9.99 10h-.022C4.47 19.994 0 15.519 0 10 0 4.477 4.477 0 10 0s10 4.477 10 10z"/></svg>' +
+					'<span> #{qwatch_title} </span>' +
 				'</div>'));
+
+			// register templates
+			Lampa.Template.add('qwatch_item_full', 
+				'<div class="torrent-item torrent-item--qwatch selector">' +
+					'<div class="qwatch-item__img">' +
+						'<img alt="">' +
+						'<div class="qwatch__loader"/>' +
+					'</div>' +
+					'<div class="qwatch-item__body">' +
+						'<div class="qwatch-item__head">' +
+							'<div class="qwatch-item__title">{title}</div>' +
+							'<div class="qwatch-item__time">{time}</div>' +
+						'</div>' +
+						'<div class="qwatch-item__timeline"/>' +
+						'<div class="qwatch-item__footer">' +
+							'<div class="qwatch-item__details">{details}</div>' +
+							'<div class="qwatch-item__quality">{quality}</div>' +
+						'</div>' +
+					'</div>' +
+				'</div>');
+			Lampa.Template.add('qwatch_item_folder', 
+				'<div class="torrent-item torrent-item--qwatch qwatch-item--folder selector">' +
+					'<div class="qwatch-item__folder">' +
+						'<svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 128 112" fill="currentColor"><rect y="20" width="128" height="92" rx="13"/><path d="M29.9963 8H98.0037C96.0446 3.3021 91.4079 0 86 0H42C36.5921 0 31.9555 3.3021 29.9963 8Z" fill-opacity="0.23"/><rect x="11" y="8" width="106" height="76" rx="13" fill-opacity="0.51"/></svg>' +
+					'</div>' +
+					'<div class="qwatch-item__body">' +
+						'<div class="qwatch-item__head">' +
+							'<div class="qwatch-item__title">{title}</div>' +
+							'<div class="qwatch-item__time">{time}</div>' +
+						'</div>' +
+						'<div class="qwatch-item__footer">' +
+							'<div class="qwatch-item__details">{details}</div>' +
+						'</div>' +
+					'</div>' +
+				'</div>');
+			Lampa.Template.add('qwatch_item_rating', 
+				'<div class="qwatch-item__rating">' +
+					Lampa.Template.get('icon_star', {}, true) +
+					'<span>{rate}</span>' +
+				'</div>');
+			Lampa.Template.add('qwatch_page_content_loader',
+				'<div class="qwatch-empty">' +
+					'<div class="broadcast__scan"><div/></div>' +
+					'<div class="qwatch-empty__list">' +
+						'<div class="qwatch-empty-skeleton selector">' +
+							'<div class="qwatch-empty-skeleton__ico"/>' +
+							'<div class="qwatch-empty-skeleton__body"/>' +
+						'</div>' +
+						'<div class="qwatch-empty-skeleton">' +
+							'<div class="qwatch-empty-skeleton__ico"/>' +
+							'<div class="qwatch-empty-skeleton__body"/>' +
+						'</div>' +
+						'<div class="qwatch-empty-skeleton">' +
+							'<div class="qwatch-empty-skeleton__ico"/>' +
+							'<div class="qwatch-empty-skeleton__body"/>' +
+						'</div>' +
+					'</div>' +
+				'</div>');
+			Lampa.Template.add('qwatch_page_no_answer',
+				'<div class="qwatch-empty">' +
+					'<div class="qwatch-empty__title">#{qwatch_provider_no_results}</div>' +
+					'<div class="qwatch-empty__time">#{qwatch_provider_timeout}</div>' +
+					'<div class="qwatch-empty__buttons">' +
+						'<div class="qwatch-empty__button selector cancel">#{cancel}</div>' +
+						'<div class="qwatch-empty__button selector change">#{qwatch_source_change}</div>' +
+					'</div>' +
+					'<div class="qwatch-empty__list">' +
+						'<div class="qwatch-empty-skeleton">' +
+							'<div class="qwatch-empty-skeleton__ico"/>'+
+							'<div class="qwatch-empty-skeleton__body"/>' +
+						'</div>' +
+						'<div class="qwatch-empty-skeleton">' +
+							'<div class="qwatch-empty-skeleton__ico"/>' +
+							'<div class="qwatch-empty-skeleton__body"/>' +
+						'</div>' +
+						'<div class="qwatch-empty-skeleton">' +
+							'<div class="qwatch-empty-skeleton__ico"/>' +
+							'<div class="qwatch-empty-skeleton__body"/>' +
+						'</div>' +
+					'</div>' +
+				'</div>');
+
+			// register component
+			Lampa.Component.add('qwatch', QWatchComponent);
 
 			let render = event.object.activity.render();
 			render.find('.view--torrent').before(onlineButton);
 
 			// register button action
 			onlineButton.on('hover:enter', () => {
-				// register templates
-				Lampa.Template.add('qwatch_item_full', 
-					'<div class="torrent-item torrent-item--qwatch selector">' +
-						'<div class="qwatch-item__img">' +
-							'<img alt="">' +
-							'<div class="qwatch__loader"/>' +
-						'</div>' +
-						'<div class="qwatch-item__body">' +
-							'<div class="qwatch-item__head">' +
-								'<div class="qwatch-item__title">{title}</div>' +
-								'<div class="qwatch-item__time">{time}</div>' +
-							'</div>' +
-							'<div class="qwatch-item__timeline"/>' +
-							'<div class="qwatch-item__footer">' +
-								'<div class="qwatch-item__details">{details}</div>' +
-								'<div class="qwatch-item__quality">{quality}</div>' +
-							'</div>' +
-						'</div>' +
-					'</div>');
-				Lampa.Template.add('qwatch_item_folder', 
-					'<div class="torrent-item torrent-item--qwatch qwatch-item--folder selector">' +
-						'<div class="qwatch-item__folder">' +
-							'<svg xmlns="http://www.w3.org/2000/svg" viewbox="0 0 128 112" fill="currentColor"><rect y="20" width="128" height="92" rx="13"/><path d="M29.9963 8H98.0037C96.0446 3.3021 91.4079 0 86 0H42C36.5921 0 31.9555 3.3021 29.9963 8Z" fill-opacity="0.23"/><rect x="11" y="8" width="106" height="76" rx="13" fill-opacity="0.51"/></svg>' +
-						'</div>' +
-						'<div class="qwatch-item__body">' +
-							'<div class="qwatch-item__head">' +
-								'<div class="qwatch-item__title">{title}</div>' +
-								'<div class="qwatch-item__time">{time}</div>' +
-							'</div>' +
-							'<div class="qwatch-item__footer">' +
-								'<div class="qwatch-item__details">{details}</div>' +
-							'</div>' +
-						'</div>' +
-					'</div>');
-				Lampa.Template.add('qwatch_item_rating', 
-					'<div class="qwatch-item__rating">' +
-						Lampa.Template.get('icon_star', {}, true) +
-						'<span>{rate}</span>' +
-					'</div>');
-				Lampa.Template.add('qwatch_page_content_loader',
-					'<div class="qwatch-empty">' +
-						'<div class="broadcast__scan"><div/></div>' +
-						'<div class="qwatch-empty__list">' +
-							'<div class="qwatch-empty-skeleton selector">' +
-								'<div class="qwatch-empty-skeleton__ico"/>' +
-								'<div class="qwatch-empty-skeleton__body"/>' +
-							'</div>' +
-							'<div class="qwatch-empty-skeleton">' +
-								'<div class="qwatch-empty-skeleton__ico"/>' +
-								'<div class="qwatch-empty-skeleton__body"/>' +
-							'</div>' +
-							'<div class="qwatch-empty-skeleton">' +
-								'<div class="qwatch-empty-skeleton__ico"/>' +
-								'<div class="qwatch-empty-skeleton__body"/>' +
-							'</div>' +
-						'</div>' +
-					'</div>');
-				Lampa.Template.add('qwatch_page_no_answer',
-					'<div class="qwatch-empty">' +
-						'<div class="qwatch-empty__title">#{qwatch_provider_no_results}</div>' +
-						'<div class="qwatch-empty__time">#{qwatch_provider_timeout}</div>' +
-						'<div class="qwatch-empty__buttons">' +
-							'<div class="qwatch-empty__button selector cancel">#{cancel}</div>' +
-							'<div class="qwatch-empty__button selector change">#{qwatch_source_change}</div>' +
-						'</div>' +
-						'<div class="qwatch-empty__list">' +
-							'<div class="qwatch-empty-skeleton">' +
-								'<div class="qwatch-empty-skeleton__ico"/>'+
-								'<div class="qwatch-empty-skeleton__body"/>' +
-							'</div>' +
-							'<div class="qwatch-empty-skeleton">' +
-								'<div class="qwatch-empty-skeleton__ico"/>' +
-								'<div class="qwatch-empty-skeleton__body"/>' +
-							'</div>' +
-							'<div class="qwatch-empty-skeleton">' +
-								'<div class="qwatch-empty-skeleton__ico"/>' +
-								'<div class="qwatch-empty-skeleton__body"/>' +
-							'</div>' +
-						'</div>' +
-					'</div>');
-
-				// register component
-				Lampa.Component.add('qwatch', QWatchComponent);
-
 				// register activity
 				let clarificationSearch = clarificationSearchGet(event.data.movie.id);
 				Lampa.Activity.push({
