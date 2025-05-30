@@ -1895,19 +1895,12 @@
 				Lampa.Storage.sync('online_choice_' + providerName, 'object_object');
 			}
 		}
-
-		let vastScript = document.body.querySelector('script[src="' + Lampa.Manifest.cub_domain + '/plugin/vast' + '"]');
-		if (vastScript)
-			vastScript.remove();
 	}
 
 	// catch creation of preroll ads video
 	document.createElement = new Proxy(document.createElement, {
 		apply(target, thisArg, args) {
-			if (args[0] === 'script') {
-				console.log('1', 'sc');
-			}
-			else if (args[0] === 'video') {
+			if (args[0] === 'video') {
 				let fakeVideo = target.apply(thisArg, args);
 
 				fakeVideo.play = function () {
