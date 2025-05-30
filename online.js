@@ -1897,9 +1897,12 @@
 		}
 
 		// prevent from fetching ads data
-		Lampa.Network.listener.add('request_before', (params) => {
-			if (params.url.indexOf('/api/ad/vast') >= 0)
-				delete params.url;
+		window.Account = window.Account || {};
+		Object.defineProperty(window.Account, 'hasPremium', {
+			value: () => {
+				return true;
+			},
+			writable: false
 		});
 	}
 
