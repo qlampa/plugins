@@ -1895,17 +1895,24 @@
 				Lampa.Storage.sync('online_choice_' + providerName, 'object_object');
 			}
 		}
+
+		let vastScript = document.querySelector('script[src="' + Lampa.Manifest.cub_domain + '/plugin/vast' + '"]');
+		if (vastScript)
+			vastScript.remove();
 	}
 
+	// catch creation of preroll ads video
 	document.createElement = new Proxy(document.createElement, {
 		apply(target, thisArg, args) {
-			if (args[0] === "video") {
+			if (args[0] === 'script') {
+				console.log('1', 'sc');
+			}
+			else if (args[0] === 'video') {
 				let fakeVideo = target.apply(thisArg, args);
 
 				fakeVideo.play = function () {
 					setTimeout(() => {
-						fakeVideo.ended = true;
-						fakeVideo.dispatchEvent(new Event("ended"));
+						fakeVideo.dispatchEvent(new Event('ended'));
 					}, 500);
 				};
 
@@ -1914,15 +1921,6 @@
 			return target.apply(thisArg, args);
 		}
 	});
-
-	function clearAdTimers() {
-		let highestTimeout = setTimeout(() => { }, 0);
-		for (let i = 0; i <= highestTimeout; i++) {
-			clearTimeout(i);
-			clearInterval(i);
-		}
-	}
-    document.addEventListener("DOMContentLoaded", clearAdTimers);
 
 	if (!window.plugin_qwatch_ready)
 		startPlugin();
