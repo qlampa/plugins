@@ -118,12 +118,12 @@
 		let lastFocusTarget;
 
 		/**
-		 * @typedef SourceData
+		 * @typedef ProviderObject
 		 * @type {{url:string,name:string,show:boolean}}
 		 **/
 		/**
 		 * container of the available (alive) providers
-		 * @type {Object.<string, SourceData>}
+		 * @type {Object.<string, ProviderObject>}
 		 **/
 		let providersAlive = {};
 		/**
@@ -138,14 +138,14 @@
 		let providerActiveUrl;
 		/**
 		 * provider used last time
-		 * @type {Object}
+		 * @type {Object.<number, string>}
 		 **/
 		let providersLast = Lampa.Storage.cache('online_last_balanser', 200, {});
 		if (providersLast)
 			providerActive = providersLast[object.movie.id];
 		let providerTimer;
 
-		let images = [];
+		let imagesCache = [];
 		let number_of_requests = 0;
 		let number_of_requests_timer;
 		let life_wait_times = 0;
@@ -500,10 +500,10 @@
 		};
 		// @todo: rework and optimize asap
 		this.requestVideoData = function (video, call) {
-			if (Lampa.Storage.field('player') !== 'inner' && file.stream && Lampa.Platform.is('apple')) {
+			if (Lampa.Storage.field('player') !== 'inner' && video.stream && Lampa.Platform.is('apple')) {
 				let videoStream = Lampa.Arrays.clone(video);
 				videoStream.method = 'play';
-				videoStream.url = file.stream;
+				videoStream.url = video.stream;
 				call(videoStream, {});
 			}
 			else if (video.method == 'play')
@@ -537,7 +537,7 @@
 		 **/
 		/**
 		 * construct player object
-		 * @param {Object} file source video file
+		 * @param {Object} video source video file
 		 * @returns {PlayData} player object
 		 **/
 		this.toPlayData = function (video) {
@@ -816,7 +816,7 @@
 				onContextMenu: (video, html, call) => {
 					this.requestVideoData(video, (videoData) => {
 						call({
-							file: videoData.url,
+							url: videoData.url,
 							quality: video.qualities
 						});
 					}, true);
@@ -911,13 +911,13 @@
 			this.saveChoice(destinationChoice, provider);
 		};
 		/**
-		 * Очистить список файлов
-		 */
+		 * cleanup cache and reset page
+		 **/
 		this.resetPage = function() {
 			lastFocusTarget = false;
 			clearInterval(providerTimer);
 			network.clear();
-			images.length = 0;
+			imagesCache.length = 0;
 			scroll.render().find('.empty').remove();
 			scroll.clear();
 			scroll.reset();
@@ -936,16 +936,15 @@
 			}
 		};
 		/**
-		 * Построить фильтр
-		 */
+		 * build filter
+		 **/
 		this.filter = function(filterItems, choice) {
 			let selection = [];
-
 			let addSelection = (type, title) => {
-				let need = this.getChoice();
-				let value = need[type];
+				const need = this.getChoice();
+				const value = need[type];
 
-				let fieldItems = filterItems[type];
+				const fieldItems = filterItems[type];
 				let subitems = [];
 				fieldItems.forEach((name, i) => {
 					subitems.push({
@@ -962,6 +961,7 @@
 					stype: type
 				});
 			};
+
 			filterItems.source = filterSources;
 			selection.push({
 				title: Lampa.Lang.translate('torrent_parser_reset'),
@@ -991,15 +991,15 @@
 		 * @param {Object} filterItems
 		 **/
 		this.showFilter = function(filterItems) {
-			let need = this.getChoice();
+			let choice = this.getChoice();
 			let select = [];
 
-			for (const i in need) {
-				if (filterItems[i] && filterItems[i].length > 0) {
-					if (i == 'voice')
-						select.push(filterTranslation[i] + ': ' + filterItems[i][need[i]]);
-					else if (i !== 'source' && filterItems.season.length > 0)
-						select.push(filterTranslation.season + ': ' + filterItems[i][need[i]]);
+			for (const field in choice) {
+				if (filterItems[field] && filterItems[field].length > 0) {
+					if (field == 'voice')
+						select.push(filterTranslation[field] + ': ' + filterItems[field][choice[field]]);
+					else if (field !== 'source' && filterItems.season.length > 0)
+						select.push(filterTranslation.season + ': ' + filterItems[field][choice[field]]);
 				}
 			}
 
@@ -1021,7 +1021,7 @@
 					episodes = tmdbResponse["episodes"];
 					callback(episodes);
 				}, (data) => {
-					// @todo: TMDB doesn't group some animes by seasons, and uses absolute episode numbering for those
+					// @note: TMDB doesn't group some animes by seasons, and uses absolute episode numbering for those
 					// check if season isn't found on TMDB
 					if (data.status === 404 && object.movie.tvdb_id) {
 						// request the absolute season
@@ -1048,8 +1048,10 @@
 
 											// remap absolute episodes array
 											episodes.forEach((episode, index) => {
-												//episode["episode_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["number"];
-												episode["season_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["seasonNumber"];
+												const tvdbEpisode = tvdbEpisodes[tvdbEpisodesOffset + index];
+												episode["absolute_number"] = tvdbEpisode["absoluteNumber"] || episode["episode_number"];
+												episode["episode_number"] = tvdbEpisode["number"];
+												episode["season_number"] = tvdbEpisode["seasonNumber"];
 											});
 
 											callback(episodes);
@@ -1107,9 +1109,10 @@
 				let scrollToLast = null;
 				let scrollToMark = null;
 
+				let episode;
 				const maxEpisodeNumberLength = videos.length.toString().length;
 				videos.forEach((entry, index) => {
-					let episode = episodes.find((e) => {
+					episode = episodes.find((e) => {
 						return e.episode_number == entry.episode && e.season_number == seasonNumber;
 					});
 
@@ -1131,7 +1134,7 @@
 					const hashTimeline = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title].join('') : object.movie.original_title);
 
 					if (entry.season && voiceName.length > 0) {
-						entry.translate_episode_end = this.getLastEpisode(videos);
+						entry.translate_episode_end = videos[videos.length - 1].episode;
 						entry.translate_voice = voiceName;
 					}
 
@@ -1196,7 +1199,7 @@
 								image.append('<div class="qwatch-item__episode-number"><span>' + String(entry.episode).padStart(maxEpisodeNumberLength, '0') + '</span></div>'); // @test: 'String.prototype.padStart()' is available since ES8
 						};
 						thumbImg.src = Lampa.TMDB.image('t/p/w300' + (episode ? episode.still_path : object.movie.backdrop_path));
-						images.push(thumbImg);
+						imagesCache.push(thumbImg);
 					}
 
 					html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(entry.timeline));
@@ -1211,6 +1214,7 @@
 					// max out the timeline
 					entry.maxTimeline = () => {
 						entry.timeline.percent = 100;
+						entry.timeline.time = 0; // reset view time, so if we gonna open it next time, playback will start from begin
 						Lampa.Timeline.update(entry.timeline);
 					};
 					entry.clearTimeline = () => {
@@ -1292,29 +1296,27 @@
 				});
 
 				// append ongoing episodes, both unreleased and currently not voiced ones
-				// @todo: TMDB doesn't group some animes by seasons, and uses absolute episode numbering for those
-				const lastEpisodeReleased = videos[videos.length - 1].episode;
-				const lastEpisodeToAirNumber = object.movie.last_episode_to_air ? object.movie.last_episode_to_air.episode_number : 0;
-				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : 0;
-				if (nextEpisodeToAirNumber > 0 && lastEpisodeReleased >= lastEpisodeToAirNumber - 1) {
-					const episodesToAir = episodes.slice(nextEpisodeToAirNumber - 1);
-					episodesToAir.forEach((episode) => {
+				// @note: TMDB doesn't group some animes by seasons, and uses absolute episode numbering for those
+				const lastEpisodeAirNumber = object.movie.last_episode_to_air ? object.movie.last_episode_to_air.episode_number : 0;
+				if (episode && episode.absolute_number >= lastEpisodeAirNumber - 1) { // check if last available episode number is close to the last aired episode number
+					const episodesToAir = episodes.slice(episode.absolute_number);
+					episodesToAir.forEach((episodeAir) => {
 						let details = [];
 						let rating = '';
-						if (episode.vote_average)
+						if (episodeAir.vote_average)
 							rating = Lampa.Template.get('qwatch_item_rating', {
-								rate: episode.vote_average.toFixed(1)
+								rate: episodeAir.vote_average.toFixed(1)
 							}, true);
 
 						let daysLeft = 0;
-						if (episode.air_date) {
-							details.push(Lampa.Utils.parseTime(episode.air_date).full);
-							daysLeft = Math.round((new Date(episode.air_date).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+						if (episodeAir.air_date) {
+							details.push(Lampa.Utils.parseTime(episodeAir.air_date).full);
+							daysLeft = Math.round((new Date(episodeAir.air_date).getTime() - Date.now()) / (24 * 3600 * 1000));
 						}
 
 						let html = Lampa.Template.get('qwatch_item_full', {
-							title: episode.name,
-							time: Lampa.Utils.secondsToTime(episode.runtime * 60, true),
+							title: episodeAir.name,
+							time: Lampa.Utils.secondsToTime(episodeAir.runtime * 60, true),
 							details: rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : ''),
 							quality: (daysLeft > 0 ? (Lampa.Lang.translate('full_episode_days_left') + ': ' + daysLeft) : Lampa.Lang.translate('tv_status_post_production'))
 						});
@@ -1322,25 +1324,25 @@
 						let image = html.find('.qwatch-item__img');
 
 						const season = videos[0].season;
-						const hashTimeline = Lampa.Utils.hash([season, season > 10 ? ':' : '', episode.episode_number, object.movie.original_title].join(''));
+						const hashTimeline = Lampa.Utils.hash([season, season > 10 ? ':' : '', episodeAir.episode_number, object.movie.original_title].join(''));
 						html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(Lampa.Timeline.view(hashTimeline)));
 
 						let thumbnail = html.find('img')[0];
-						if (episode.still_path) {
+						if (episodeAir.still_path) {
 							thumbnail.onerror = () => {
 								thumbnail.src = './img/img_broken.svg';
 							};
 							thumbnail.onload = () => {
 								image.addClass('qwatch-item__img--loaded');
 								loader.remove();
-								image.append('<div class="qwatch-item__episode-number"><span>' + String(episode.episode_number).padStart(maxEpisodeNumberLength, '0') + '</span></div>');
+								image.append('<div class="qwatch-item__episode-number"><span>' + String(episodeAir.episode_number).padStart(maxEpisodeNumberLength, '0') + '</span></div>');
 							};
-							thumbnail.src = Lampa.TMDB.image('t/p/w300' + episode.still_path);
-							images.push(thumbnail);
+							thumbnail.src = Lampa.TMDB.image('t/p/w300' + episodeAir.still_path);
+							imagesCache.push(thumbnail);
 						}
 						else {
 							loader.remove();
-							image.append('<div class="qwatch-item__episode-number"><span>' + String(episode.episode_number).padStart(maxEpisodeNumberLength, '0') + '</span></div>');
+							image.append('<div class="qwatch-item__episode-number"><span>' + String(episodeAir.episode_number).padStart(maxEpisodeNumberLength, '0') + '</span></div>');
 						}
 
 						html.on('hover:focus', (event) => {
@@ -1366,7 +1368,7 @@
 		 **/
 		this.contextMenu = function(params) {
 			params.html.on('hover:long', () => {
-				function show(video) {					
+				function show(videoInfo) {					
 					let menu = [];
 					if (Lampa.Platform.is('webos')) {
 						menu.push({
@@ -1403,16 +1405,16 @@
 						title: Lampa.Lang.translate('time_reset'),
 						onSelect: params.entry.clearTimeline
 					});
-					if (video) {
+					if (videoInfo) {
 						menu.push({
 							title: Lampa.Lang.translate('copy_link'),
 							onSelect: () => {
-								if (video.quality) {
+								if (videoInfo.quality) {
 									let qualityItems = [];
-									for (const key of video.quality)
+									for (const key of videoInfo.quality)
 										qualityItems.push({
 											title: key,
-											url: video.quality[key]
+											url: videoInfo.quality[key]
 									});
 
 									Lampa.Select.show({
@@ -1430,7 +1432,8 @@
 										}
 									});
 								} else {
-									Lampa.Utils.copyTextToClipboard(video.url, () => {
+									// @test: debug
+									Lampa.Utils.copyTextToClipboard(videoInfo.url, () => {
 										Lampa.Noty.show(Lampa.Lang.translate('copy_secuses'));
 									}, () => {
 										Lampa.Noty.show(Lampa.Lang.translate('copy_error'));
@@ -1512,25 +1515,25 @@
 			scroll.append(html);
 			this.setLoading(false);
 		};
-		this.showNoConnectPage = function(err) {
+		this.showNoConnectPage = function(response) {
 			let html = Lampa.Template.get('qwatch_page_no_answer', {});
 			html.find('.qwatch-empty__buttons').remove();
 			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('title_error'));
-			html.find('.qwatch-empty__time').text(err && err["accsdb"] ? err["msg"] : Lampa.Lang.translate('qwatch_provider_no_results').replace('{provider}', providersAlive[providerActive].name));
+			html.find('.qwatch-empty__time').text(response && response["accsdb"] ? response["msg"] : Lampa.Lang.translate('qwatch_provider_no_results').replace('{provider}', providersAlive[providerActive].name));
 
 			scroll.clear();
 			scroll.append(html);
 			this.setLoading(false);
 		};
-		this.showNoAnswerPage = function(err) {
+		this.showNoAnswerPage = function(response) {
 			this.resetPage();
 
 			let html = Lampa.Template.get('qwatch_page_no_answer', {
 				provider: providerActive
 			});
 
-			if (err && err["accsdb"])
-				html.find('.qwatch-empty__title').html(err["msg"]);
+			if (response && response["accsdb"])
+				html.find('.qwatch-empty__title').html(response["msg"]);
 
 			html.find('.cancel').on('hover:enter', () => {
 				clearInterval(providerTimer);
@@ -1547,7 +1550,7 @@
 			scroll.append(html);
 			this.setLoading(false);
 
-			let secondsLeft = err && err["accsdb"] ? 10 : 5;
+			let secondsLeft = response && response["accsdb"] ? 10 : 5;
 			providerTimer = setInterval(() => {
 				secondsLeft--;
 				html.find('.timeout').text(secondsLeft);
@@ -1562,14 +1565,6 @@
 						this.changeProvider(providerActive);
 				}
 			}, 1000);
-		};
-		this.getLastEpisode = function(videos) {
-			let lastEpisode = 0;
-			for (let video of videos) {
-				if (video.episode !== undefined)
-					lastEpisode = Math.max(lastEpisode, video.episode);
-			}
-			return lastEpisode;
 		};
 		/**
 		 * Начать навигацию по файлам
@@ -1625,7 +1620,7 @@
 		 **/
 		this.destroy = function() {
 			network.clear();
-			images.length = 0;
+			imagesCache.length = 0;
 			explorer.destroy();
 			scroll.destroy();
 			clearInterval(providerTimer);
