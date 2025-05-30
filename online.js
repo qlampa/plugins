@@ -235,7 +235,7 @@
 			query.push('source=' + (object.movie.source || 'tmdb'));
 			query.push('clarification=' + (object.clarification ? 1 : 0));
 			const accountEmail = Lampa.Storage.get('account_email', '');
-			if (accountEmail.length !== 0)
+			if (accountEmail.length > 0)
 				query.push('cub_id=' + Lampa.Utils.hash(accountEmail));
 			query.push('rchtype=' + (window.rch ? window.rch.type : ''));
 			query.push('similar=' + (object.similar ? true : false));
@@ -246,7 +246,7 @@
 			if (providersLast[object.movie.id])
 				return providersLast[object.movie.id];
 			else
-				return Lampa.Storage.get('online_balanser', filterSources.length !== 0 ? filterSources[0] : '');
+				return Lampa.Storage.get('online_balanser', filterSources.length > 0 ? filterSources[0] : '');
 		};
 		this.startSource = function (sourcesJson) {
 			return new Promise((resolve, reject) => {
@@ -260,7 +260,7 @@
 				};
 
 				filterSources = Lampa.Arrays.getKeys(providersAlive);
-				if (filterSources.length !== 0) {
+				if (filterSources.length > 0) {
 					if (providersLast[object.movie.id])
 						providerActive = providersLast[object.movie.id];
 					else
@@ -290,7 +290,7 @@
 							return (any ? c.show : (c.show && c.name.toLowerCase() == lastProvider));
 						});
 
-						if (_filter.length !== 0) {
+						if (_filter.length > 0) {
 							red = true;
 							resolve(targetJson.online.filter((c) => {
 								return c.show;
@@ -566,7 +566,7 @@
 		 * @param {PlayData} play
 		 **/
 		this.setDefaultQualityUrl = function (play) {
-			if (Lampa.Arrays.getKeys(play.quality).length !== 0) {
+			if (Lampa.Arrays.getKeys(play.quality).length > 0) {
 				for (const key in play.quality) {
 					const value = play.quality[key];
 					if (parseInt(key) == Lampa.Storage.field('video_quality_default')) {
@@ -797,7 +797,7 @@
 								playlist.push(playCell);
 							});
 
-							if (playlist.length !== 0)
+							if (playlist.length > 0)
 								playData.playlist = playlist;
 						}
 						else
@@ -969,9 +969,9 @@
 			});
 			this.saveChoice(choice);
 
-			if (filterItems.season && filterItems.season.length !== 0)
+			if (filterItems.season && filterItems.season.length > 0)
 				addSelection('season', Lampa.Lang.translate('torrent_serial_season'));
-			if (filterItems.voice && filterItems.voice.length !== 0)
+			if (filterItems.voice && filterItems.voice.length > 0)
 				addSelection('voice', Lampa.Lang.translate('torrent_parser_voice'));
 
 			filter.set('filter', selection);
@@ -995,10 +995,10 @@
 			let select = [];
 
 			for (const i in need) {
-				if (filterItems[i] && filterItems[i].length !== 0) {
+				if (filterItems[i] && filterItems[i].length > 0) {
 					if (i == 'voice')
 						select.push(filterTranslation[i] + ': ' + filterItems[i][need[i]]);
-					else if (i !== 'source' && filterItems.season.length !== 0)
+					else if (i !== 'source' && filterItems.season.length > 0)
 						select.push(filterTranslation.season + ': ' + filterItems[i][need[i]]);
 				}
 			}
@@ -1021,7 +1021,7 @@
 					episodes = tmdbResponse["episodes"];
 					callback(episodes);
 				}, (data) => {
-					// @todo: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
+					// @todo: TMDB doesn't group some animes by seasons, and uses absolute episode numbering for those
 					// check if season isn't found on TMDB
 					if (data.status === 404 && object.movie.tvdb_id) {
 						// request the absolute season
@@ -1041,14 +1041,14 @@
 										network.native(tvdbApiUrl + 'series/' + object.movie.tvdb_id + '/extended?meta=episodes&short=true', (tvdbResponse) => {
 											const tvdbEpisodes = tvdbResponse["data"]["episodes"];
 
-											// find first episode index of the selected season
+											// find absolute index of the first episode in the selected season
 											const tvdbEpisodesOffset = tvdbEpisodes.findIndex((episode) => {
 												return episode["seasonNumber"] !== 0;
 											}) || 0;
 
 											// remap absolute episodes array
 											episodes.forEach((episode, index) => {
-												episode["episode_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["number"];
+												//episode["episode_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["number"];
 												episode["season_number"] = tvdbEpisodes[tvdbEpisodesOffset + index]["seasonNumber"];
 											});
 
@@ -1095,101 +1095,6 @@
 			if (!videos.length)
 				return this.showEmptyPage();
 
-			/*
-			let viewList = Lampa.Storage.cache('online_view', 5000, []);
-			let choice = this.getChoice();
-
-			let isFullWidth = window.innerWidth > 480;
-			let scrollToMark = false;
-
-			if (object.method === 'tv') {
-				let scrollToLast = false;
-
-				// @note: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
-				this.requestEpisodes(Math.min(videos[0].season, object.number_of_seasons), (episodes) => {
-					const maxEpisodeNumberLength = videos.length.toString().length;
-					videos.forEach((element, index) => {
-						let episode = episodes.find((e) => {
-							return e.episode_number == element.episode;
-						});
-
-						let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || element.voice_name;
-
-						if (element.quality) {
-							element.qualities = element.quality;
-							element.quality = Lampa.Arrays.getKeys(element.quality)[0];
-						}
-						// set voice subscribe parameters
-						if (element.voice_name) {
-							element.translate_episode_end = this.getLastEpisode(videos);
-							element.translate_voice = element.voice_name;
-						}
-
-						Lampa.Arrays.extend(element, {
-							voice_name: voiceName,
-							quality: '',
-							time: Lampa.Utils.secondsToTime(episode.runtime * 60, true)
-						});
-
-						let hashFile = Lampa.Utils.hash([element.season, element.season > 10 ? ':' : '', element.episode, object.movie.original_title, element.voice_name].join(''));
-						let hashTimeline = Lampa.Utils.hash([element.season, element.season > 10 ? ':' : '', element.episode, object.movie.original_title].join(''));
-
-						// @todo: when video switched via external player it's not marked as watched | add listener to timeline 'update' event / overload 'timeline.handler' | or add listener to playlist 'select' event, must cause less overhead
-						element.timeline = Lampa.Timeline.view(hashTimeline);
-
-						// construct details content
-						let details = [];
-						let rating = '';
-						if (episode.vote_average)
-							rating = Lampa.Template.get('qwatch_item_rating', {
-								rate: episode.vote_average.toFixed(1)
-							}, true);
-						if (episode.air_date && isFullWidth)
-							details.push(Lampa.Utils.parseTime(episode.air_date).full);
-						if (element.details)
-							details.push(element.details);
-						element.details = rating + (details.length !== 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
-
-
-					});
-				});
-			}
-			else {
-				videos.forEach((element, index) => {
-					let voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || element.voice_name || element.translation;
-
-					if (element.quality) {
-						element.qualities = element.quality;
-						element.quality = Lampa.Arrays.getKeys(element.quality)[0];
-					}
-					// replace title with extra info
-					if (element.translation)
-						element.title = element.translation;
-
-					Lampa.Arrays.extend(element, {
-						voice_name: voiceName,
-						details: voiceName || 'Неизвестно',
-						quality: '',
-						time: Lampa.Utils.secondsToTime(object.movie.runtime * 60, true)
-					});
-
-					let hashFile = Lampa.Utils.hash(object.movie.original_title + element.voice_name);
-					let hashTimeline = Lampa.Utils.hash(object.movie.original_title);
-
-					element.timeline = Lampa.Timeline.view(hashTimeline);
-
-					// construct details content
-					let details = [];
-					if (object.movie.release_date && isFullWidth)
-						details.push(Lampa.Utils.parseTime(object.movie.release_date).full);
-					if (object.movie.tagline && element.details.length < 32)
-						details.push(object.movie.tagline);
-					if (element.details)
-						details.push(element.details);
-					element.details = (details.length !== 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
-				});
-			}*/
-			
 			// @note: TMDB doesn't group animes by seasons, and uses absolute episode numbering for those
 			const seasonNumber = videos[0].season;
 			this.requestEpisodes(seasonNumber, (episodes) => {
@@ -1208,7 +1113,7 @@
 						return e.episode_number == entry.episode && e.season_number == seasonNumber;
 					});
 
-					const voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : null) || entry.voice_name || entry.translate || '';
+					const voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : '') || entry.voice_name || entry.translate || '';
 					if (entry.quality) {
 						entry.qualities = entry.quality;
 						entry.quality = Lampa.Arrays.getKeys(entry.quality)[0];
@@ -1225,7 +1130,7 @@
 					const hashFile = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title, voiceName].join('') : object.movie.original_title + voiceName);
 					const hashTimeline = Lampa.Utils.hash(entry.season ? [entry.season, entry.season > 10 ? ':' : '', entry.episode, object.movie.original_title].join('') : object.movie.original_title);
 
-					if (entry.season && voiceName.length !== 0) {
+					if (entry.season && voiceName.length > 0) {
 						entry.translate_episode_end = this.getLastEpisode(videos);
 						entry.translate_voice = voiceName;
 					}
@@ -1243,18 +1148,18 @@
 								rate: episode.vote_average.toFixed(1)
 							}, true);
 
-						if (episode.air_date && isFullWidth)
+						if (episode.air_date)
 							details.push(Lampa.Utils.parseTime(episode.air_date).full);
 					}
-					else if (isFullWidth) {
+					else {
 						if (object.movie.release_date)
 							details.push(Lampa.Utils.parseTime(object.movie.release_date).full);
-						if (object.movie.tagline && entry.details.length < 32)
+						if (isFullWidth && object.movie.tagline && entry.details.length < 32)
 							details.push(object.movie.tagline);
 					}
 					if (entry.details)
 						details.push(entry.details);
-					entry.details = rating + (details.length !== 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
+					entry.details = rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
 
 					let html = Lampa.Template.get('qwatch_item_full', entry);
 					// set scroll target
@@ -1386,9 +1291,12 @@
 					scroll.append(html);
 				});
 
-				// append ongoing episodes
-				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : -1;
-				if (nextEpisodeToAirNumber) {
+				// append ongoing episodes, both unreleased and currently not voiced ones
+				// @todo: TMDB doesn't group some animes by seasons, and uses absolute episode numbering for those
+				const lastEpisodeReleased = videos[videos.length].episode;
+				const lastEpisodeToAirNumber = object.movie.last_episode_to_air ? object.movie.last_episode_to_air.episode_number : 0;
+				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : 0;
+				if (nextEpisodeToAirNumber > 0 && lastEpisodeReleased >= lastEpisodeToAirNumber - 1) {
 					const episodesToAir = episodes.slice(nextEpisodeToAirNumber - 1);
 					episodesToAir.forEach((episode) => {
 						let details = [];
@@ -1407,7 +1315,7 @@
 						let html = Lampa.Template.get('qwatch_item_full', {
 							title: episode.name,
 							time: Lampa.Utils.secondsToTime(episode.runtime * 60, true),
-							details: rating + (details.length !== 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : ''),
+							details: rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : ''),
 							quality: (daysLeft > 0 ? (Lampa.Lang.translate('full_episode_days_left') + ': ' + daysLeft) : Lampa.Lang.translate('tv_status_post_production'))
 						});
 						let loader = html.find('.qwatch__loader');
@@ -1458,7 +1366,7 @@
 		 **/
 		this.contextMenu = function(params) {
 			params.html.on('hover:long', () => {
-				function show(extra) {					
+				function show(video) {					
 					let menu = [];
 					if (Lampa.Platform.is('webos')) {
 						menu.push({
@@ -1495,10 +1403,40 @@
 						title: Lampa.Lang.translate('time_reset'),
 						onSelect: params.entry.clearTimeline
 					});
-					if (extra) {
+					if (video) {
 						menu.push({
 							title: Lampa.Lang.translate('copy_link'),
-							copylink: true
+							onSelect: () => {
+								if (video.quality) {
+									let qualityItems = [];
+									for (const key of video.quality)
+										qualityItems.push({
+											title: key,
+											url: video.quality[key]
+									});
+
+									Lampa.Select.show({
+										title: Lampa.Lang.translate('settings_server_links'),
+										items: qualityItems,
+										onBack: function onBack() {
+											Lampa.Controller.toggle(enabled);
+										},
+										onSelect: (videoQuality) => {
+											Lampa.Utils.copyTextToClipboard(videoQuality.url, () => {
+												Lampa.Noty.show(Lampa.Lang.translate('copy_secuses'));
+											}, () => {
+												Lampa.Noty.show(Lampa.Lang.translate('copy_error'));
+											});
+										}
+									});
+								} else {
+									Lampa.Utils.copyTextToClipboard(video.url, () => {
+										Lampa.Noty.show(Lampa.Lang.translate('copy_secuses'));
+									}, () => {
+										Lampa.Noty.show(Lampa.Lang.translate('copy_error'));
+									});
+								}
+							}
 						});
 					}
 					menu.push({
