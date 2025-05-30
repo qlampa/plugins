@@ -499,26 +499,26 @@
 				this.showEmptyPage();
 		};
 		// @todo: rework and optimize asap
-		this.requestVideoData = function (file, call) {
+		this.requestVideoData = function (video, call) {
 			if (Lampa.Storage.field('player') !== 'inner' && file.stream && Lampa.Platform.is('apple')) {
-				let streamFile = Lampa.Arrays.clone(file);
-				streamFile.method = 'play';
-				streamFile.url = file.stream;
-				call(streamFile, {});
+				let videoStream = Lampa.Arrays.clone(video);
+				videoStream.method = 'play';
+				videoStream.url = file.stream;
+				call(videoStream, {});
 			}
-			else if (file.method == 'play')
-				call(file, {});
+			else if (video.method == 'play')
+				call(video, {});
 			else {
 				Lampa.Loading.start(() => {
 					Lampa.Loading.stop();
 					Lampa.Controller.toggle('content');
 					network.clear();
 				});
-				network.native(file.url, (json) => {
+				network.native(video.url, (json) => {
 					if (json.rch) {
 						this.rch(json, () => {
 							Lampa.Loading.stop();
-							this.requestVideoData(file, call);
+							this.requestVideoData(video, call);
 						});
 					}
 					else {
@@ -1293,7 +1293,7 @@
 
 				// append ongoing episodes, both unreleased and currently not voiced ones
 				// @todo: TMDB doesn't group some animes by seasons, and uses absolute episode numbering for those
-				const lastEpisodeReleased = videos[videos.length].episode;
+				const lastEpisodeReleased = videos[videos.length - 1].episode;
 				const lastEpisodeToAirNumber = object.movie.last_episode_to_air ? object.movie.last_episode_to_air.episode_number : 0;
 				const nextEpisodeToAirNumber = object.movie.next_episode_to_air ? object.movie.next_episode_to_air.episode_number : 0;
 				if (nextEpisodeToAirNumber > 0 && lastEpisodeReleased >= lastEpisodeToAirNumber - 1) {
@@ -1895,6 +1895,12 @@
 				Lampa.Storage.sync('online_choice_' + providerName, 'object_object');
 			}
 		}
+
+		// prevent from fetching ads data
+		Lampa.Network.listener.add('request_before', (params) => {
+			if (params.url.indexOf('/api/ad/vast') >= 0)
+				delete params.url;
+		});
 	}
 
 	if (!window.plugin_qwatch_ready)
