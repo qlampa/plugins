@@ -1901,15 +1901,6 @@
 			vastScript.remove();
 	}
 
-		document.body.createElement = new Proxy(document.body.createElement, {
-		apply(target, thisArg, args) {
-			if (args[0] === 'script') {
-				console.log('1', 'sc');
-			}
-			return target.apply(thisArg, args);
-		}
-	});
-
 	// catch creation of preroll ads video
 	document.createElement = new Proxy(document.createElement, {
 		apply(target, thisArg, args) {
