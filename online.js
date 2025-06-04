@@ -71,15 +71,8 @@
 				url = Lampa.Utils.addUrlComponent(url, 'account_email=' + encodeURIComponent(email));
 		}
 
-		if (url.indexOf('uid=') === -1) {
-			let uid = Lampa.Storage.get('lampac_unic_id', '');
-			if (!uid) {
-				uid = Lampa.Utils.uid(8).toLowerCase();
-				Lampa.Storage.set('lampac_unic_id', uid);
-			}
-			if (uid)
-				url = Lampa.Utils.addUrlComponent(url, 'uid=' + encodeURIComponent(uid));
-		}
+		if (url.indexOf('uid=') === -1)
+			url = Lampa.Utils.addUrlComponent(url, 'uid=' + encodeURIComponent(Lampa.Storage.get('lampa_uid', Lampa.Utils.uid())));
 
 		return url;
 	}
@@ -547,7 +540,7 @@
 				quality: video.qualities,
 				timeline: video.timeline,
 				subtitles: video.subtitles,
-				callback: video.markWatched
+				callback: video.markWatched // playlist 'select' event callback
 			};
 		};
 		/**
@@ -555,10 +548,10 @@
 		 * @param {PlayData} play
 		 **/
 		this.setReserveUrl = function (play) {
-			if (play.url && typeof play.url == 'string' && play.url.indexOf(' or ') !== -1) {
-				let urls = play.url.split(' or ');
-				play.url = urls[0];
-				play.url_reserve = urls[1];
+			if (play.url && typeof play.url === 'string' && play.url.indexOf(' or ') !== -1) {
+				const alternativeUrls = play.url.split(' or ');
+				play.url = alternativeUrls[0];
+				play.url_reserve = alternativeUrls[1];
 			}
 		};
 		/**
@@ -736,14 +729,12 @@
 							return;
 						}
 
-						let playlist = [];
 						let playData = this.toPlayData(video);
 						playData.url = json.url;
-						playData.headers = json_call.headers || json.headers; // @test: unused
+						playData.headers = json_call.headers || json.headers;
 						playData.quality = json_call.quality || video.qualities;
 						playData.hls_manifest_timeout = json_call.hls_manifest_timeout || json.hls_manifest_timeout;
 						playData.subtitles = json.subtitles;
-						// prevent preroll ads
 						playData.vast_url = '';//json.vast_url;
 						playData.vast_msg = '';//json.vast_msg;
 						if (video.timeline.percent > 0)
@@ -751,8 +742,9 @@
 						this.setReserveUrl(playData);
 						this.setDefaultQualityUrl(playData);
 
+						let playlist = [];
 						if (video.season) {
-							// @todo: prepend episode index to title | set "group-title" as "Season N"?
+							// @todo: prepend episode index to title
 							videos.forEach((episode) => {
 								let playCell = this.toPlayData(episode);
 								// prevent preroll ads
@@ -775,7 +767,6 @@
 													playCell.subtitles = stream.subtitles;
 													this.setReserveUrl(playCell);
 													this.setDefaultQualityUrl(playCell);
-													episode.markWatched();
 												}
 												else {
 													playCell.url = '';
@@ -794,7 +785,6 @@
 
 								this.setReserveUrl(playCell);
 								this.setDefaultQualityUrl(playCell);
-
 								
 								playlist.push(playCell);
 							});
@@ -808,7 +798,14 @@
 						if (playData.url) {
 							Lampa.Player.play(playData);
 							Lampa.Player.playlist(playlist);
+
 							video.markWatched();
+							// @todo: when video switched via external player it's not marked as watched | add listener to timeline 'update' event / overload 'timeline.handler' | or add listener to playlist 'select' event, must cause less overhead
+							if (Lampa.Platform.is('android') && Lampa.Storage.field('player') == 'android')
+								Lampa.Timeline.listener.add('update', (data) => {
+									Lampa.Storage.add('online_view', data.hash);
+								});
+
 							this.updateProvider(providerActive);
 						}
 						else
@@ -947,9 +944,9 @@
 				const value = need[type];
 
 				const fieldItems = filterItems[type];
-				let subitems = [];
+				let subItems = [];
 				fieldItems.forEach((name, i) => {
-					subitems.push({
+					subItems.push({
 						title: name,
 						selected: value == i,
 						index: i
@@ -959,7 +956,7 @@
 				selection.push({
 					title: title,
 					subtitle: fieldItems[value],
-					items: subitems,
+					items: subItems,
 					stype: type
 				});
 			};
@@ -1140,7 +1137,6 @@
 						entry.translate_voice = voiceName;
 					}
 
-					// @todo: when video switched via external player it's not marked as watched | add listener to timeline 'update' event / overload 'timeline.handler' | or add listener to playlist 'select' event, must cause less overhead
 					entry.timeline = Lampa.Timeline.view(hashTimeline);
 
 					let details = [];
@@ -1205,11 +1201,12 @@
 					}
 
 					html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(entry.timeline));
-					// @todo: can be moved inplace of movie runtime when watched
+					// @todo: can be moved inplace of movie runtime when watched | did test how it looks
 					//html.find('.qwatch-item__timeline').append(Lampa.Timeline.details(element.timeline));
 
 					if (viewList.indexOf(hashFile) !== -1) {
 						scrollToMark = html;
+						html.find('.qwatch-item__time').replaceWith(Lampa.Timeline.details(element.timeline));
 						html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 					}
 
