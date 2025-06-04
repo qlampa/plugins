@@ -1202,11 +1202,11 @@
 
 					html.find('.qwatch-item__timeline').append(Lampa.Timeline.render(entry.timeline));
 					// @todo: can be moved inplace of movie runtime when watched | did test how it looks
-					//html.find('.qwatch-item__timeline').append(Lampa.Timeline.details(element.timeline));
+					//html.find('.qwatch-item__timeline').append(Lampa.Timeline.details(entry.timeline));
 
 					if (viewList.indexOf(hashFile) !== -1) {
 						scrollToMark = html;
-						html.find('.qwatch-item__time').replaceWith(Lampa.Timeline.details(element.timeline));
+						html.find('.qwatch-item__time').replaceWith(Lampa.Timeline.details(entry.timeline));
 						html.find('.qwatch-item__img').append('<div class="qwatch-item__watched">' + Lampa.Template.get('icon_viewed', {}, true) + '</div>');
 					}
 
