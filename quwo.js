@@ -147,6 +147,7 @@
 		};
 		this.addQuwoParams = function (url) {
 			let query = [];
+			query.push('method=' + object.method);
 			query.push('tmdb_id=' + object.movie.id);
 			if (object.movie.imdb_id)
 				query.push('imdb_id=' + object.movie.imdb_id);
@@ -154,12 +155,17 @@
 				query.push('kp_id=' + object.movie.kinopoisk_id);
 			query.push('title=' + encodeURIComponent(object.similar ? object.search : object.movie.title || object.movie.name));
 			query.push('original_title=' + encodeURIComponent(object.movie.original_title || object.movie.original_name));
-			query.push('method=' + object.method);
+			const language = Lampa.Storage.get('language');
+			if (language)
+				query.push('language=') + language;
 			if (object.movie.original_language)
 				query.push('original_language=' + object.movie.original_language);
-			query.push('year=' + ((object.movie.release_date || object.movie.first_air_date || '0000') + '').slice(0, 4));
+			const date = (object.movie.release_date || object.movie.first_air_date);
+			if (date)
+				query.push('year=' + year.slice(0, 4));
 			query.push('source=' + (object.movie.source || 'tmdb'));
-			query.push('similar=' + (object.similar ? true : false));
+			if (object.similar)
+				query.push('similar=true');
 
 			return url + (url.indexOf('?') >= 0 ? '&' : '?') + query.join('&');
 		};
