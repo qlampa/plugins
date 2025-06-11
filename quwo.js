@@ -2,7 +2,8 @@
 	'use strict';
 
 	const hostAddress = 'http://127.0.0.1:4500';
-	const providersList = [
+	// @todo: request those from backend instead
+	const sourcesWithSearch = [
 		'alloha', 'anilibria', 'animebesst',
 		'animedia', 'animego', 'animelib',
 		'animevost', 'ashdi', 'autoembed',
@@ -13,9 +14,8 @@
 		'kinotochka', 'kinoukr', 'kodik',
 		'lumex', 'lumex', 'mirage',
 		'moonanime', 'movpi', 'pidtor',
-		'rc/filmix', 'rc/fxapi', 'rc/rhs',
 		'redheadsound', 'remux', 'rezka',
-		'rgshows', 'rhsprem', 'smashystream',
+		'rgshows', 'smashystream',
 		'vcdn', 'vdbmovies', 'vibix',
 		'videasy', 'videocdn', 'videodb',
 		'videoseed', 'vidlink', 'vidsrc',
@@ -300,7 +300,8 @@
 			this.requestExternalIds().then(() => {
 				return this.requestSources();
 			}).then((json) => {
-				if (!providersList.find((provider) => providerActive.slice(0, provider.length) == provider))
+				// check if the current source support clarification search
+				if (!sourcesWithSearch.includes(providerActive))
 					filter.render().find('.filter--search').addClass('hide');
 
 				this.search();
@@ -1329,6 +1330,10 @@
 			this.setLoading(false);
 		};
 		this.showNoConnectPage = function (response) {
+			let sourceName = providersAlive[providerActive].name;
+			if (!sourceName)
+				sourceName = providerActive ? providerActive.charAt(0).toUpperCase() + providerActive.slice(1) : "Backend";
+
 			let html = Lampa.Template.get('qwatch_page_no_answer', {});
 			html.find('.qwatch-empty__buttons').remove();
 			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('title_error'));
@@ -1437,11 +1442,6 @@
 			explorer.destroy();
 			scroll.destroy();
 			clearInterval(providerTimer);
-			if (hubConnection) {
-				clearTimeout(hubTimer);
-				hubConnection.stop();
-				hubConnection = null;
-			}
 		};
 	}
 
@@ -1697,9 +1697,9 @@
 		});
 
 		if (Lampa.Manifest.app_digital >= 177) {
-			for (const providerName of providersList) {
+			for (const sourceKey of sourcesWithSearch) {
 				// @todo: rename to prevent conflicts with other plugins
-				Lampa.Storage.sync('online_choice_' + providerName, 'object_object');
+				Lampa.Storage.sync('online_choice_' + sourceKey, 'object_object');
 			}
 		}
 	}
