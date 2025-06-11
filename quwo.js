@@ -155,9 +155,7 @@
 				query.push('kp_id=' + object.movie.kinopoisk_id);
 			query.push('title=' + encodeURIComponent(object.similar ? object.search : object.movie.title || object.movie.name));
 			query.push('original_title=' + encodeURIComponent(object.movie.original_title || object.movie.original_name));
-			const language = Lampa.Storage.get('language');
-			if (language)
-				query.push('language=') + language;
+			query.push('language=') + Lampa.Storage.get('language', 'ru'); // @todo: this trash not getting set by default in lampa, so we always fallback to ru
 			if (object.movie.original_language)
 				query.push('original_language=' + object.movie.original_language);
 			const date = (object.movie.release_date || object.movie.first_air_date);
@@ -1341,7 +1339,7 @@
 			let html = Lampa.Template.get('qwatch_page_no_answer', {});
 			html.find('.qwatch-empty__buttons').remove();
 			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('title_error'));
-			html.find('.qwatch-empty__time').text(response ? response["msg"] : Lampa.Lang.translate('qwatch_provider_no_results').replace('{provider}', providersAlive[providerActive].name));
+			html.find('.qwatch-empty__time').text(response ? response["msg"] : Lampa.Lang.translate('qwatch_provider_no_results').replace('{provider}', sourceName));
 
 			scroll.clear();
 			scroll.append(html);
