@@ -986,6 +986,8 @@
 						if (isFullWidth && object.movie.tagline)
 							details.push(object.movie.tagline);
 					}
+					if (translationName)
+						details.push(translationName);
 					if (entry.details)
 						details.push(...entry.details);
 					entry.details = rating + (details.length > 0 ? '<span>' + details.join('<span class="qwatch-split">●</span>') + '</span>' : '');
