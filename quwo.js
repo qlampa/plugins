@@ -155,7 +155,7 @@
 				query.push('kp_id=' + object.movie.kinopoisk_id);
 			query.push('title=' + encodeURIComponent(object.similar ? object.search : object.movie.title || object.movie.name));
 			query.push('original_title=' + encodeURIComponent(object.movie.original_title || object.movie.original_name));
-			query.push('language=') + Lampa.Storage.field('language');
+			query.push('language=' + Lampa.Storage.field('language'));
 			if (object.movie.original_language)
 				query.push('original_language=' + object.movie.original_language);
 			const date = (object.movie.release_date || object.movie.first_air_date);
