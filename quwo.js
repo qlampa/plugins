@@ -129,7 +129,7 @@
 					query += '&kp_id=' + object.movie.kinopoisk_id;
 
 				// try to pull external ids via primary
-				network.timeout(10_000);
+				network.timeout(15_000);
 				network.silent(hostAddress + query, (response) => {
 					for (const name in response) {
 						object.movie[name] = response[name];
@@ -211,8 +211,8 @@
 		};
 		this.requestSources = function () {
 			return new Promise((resolve, reject) => {
-				network.timeout(15_000);
-				network.silent(this.addQuwoParams(hostAddress + '/online'), (response) => {
+				const anime = object.movie.keywords.results.indexOf((keyword) => keyword.name.includes('anime')) !== -1 || (object.movie.genres.indexOf((genre) => genre.id === 16) !== -1 && object.movie.original_language === 'ja');
+				network.silent(this.addQuwoParams(hostAddress + '/online?anime=' + anime), (response) => {
 					this.addSource(response).then(resolve).catch(reject);
 				}, reject);
 			});
