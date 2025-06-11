@@ -554,13 +554,12 @@
 			this.drawList(videos, {
 				onEnter: (video, html) => {
 					this.requestVideoData(video, (json, json_call) => {
-						if (!json || !json.url) {
+						if (!json || (!json.url && !json.qualities)) {
 							Lampa.Noty.show(Lampa.Lang.translate('qwatch_no_link'));
 							return;
 						}
 
 						let playData = this.toPlayData(video);
-						playData.url = json.url;
 						playData.headers = json_call.headers || json.headers;
 						playData.quality = json_call.qualities || video.qualities;
 						playData.hls_manifest_timeout = json_call.hls_manifest_timeout || json.hls_manifest_timeout;
