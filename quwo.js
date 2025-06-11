@@ -47,14 +47,14 @@
 	 * @param {Object} object 
 	 **/
 	function QWatchComponent(object) {
-		let network = new Lampa.Reguest();
-		let scroll = new Lampa.Scroll({
+		const network = new Lampa.Reguest();
+		const scroll = new Lampa.Scroll({
 			mask: true,
 			over: true
 		});
 		// @test: theres Lampa.Component.Episodes that already does much of what we're doing manually
-		let explorer = new Lampa.Explorer(object);
-		let filter = new Lampa.Filter(object);
+		const explorer = new Lampa.Explorer(object);
+		const filter = new Lampa.Filter(object);
 		let lastFocusTarget;
 
 		/**
@@ -120,9 +120,17 @@
 					}, resolve);
 				};
 
+				let query = '/external_ids?method=' + object.method
+				if (object.movie.id)
+					query += ('tmdb_id=' + object.movie.id);
+				if (object.movie.imdb_id)
+					query += push('imdb_id=' + object.movie.imdb_id);
+				if (object.movie.kinopoisk_id)
+					query += push('kp_id=' + object.movie.kinopoisk_id);
+
 				// try to pull external ids via primary
 				network.timeout(10_000);
-				network.silent(hostAddress + '/external_ids?method=' + object.method + '&tmdb_id=' + object.movie.id, (response) => {
+				network.silent(hostAddress + query, (response) => {
 					for (const name in response) {
 						object.movie[name] = response[name];
 					}
