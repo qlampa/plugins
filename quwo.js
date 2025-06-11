@@ -472,9 +472,9 @@
 					case 'episode': {
 						this.activity.loader(false);
 
-						const translation = json.translation;
-						if (translation) {
-							filterFound.voice = translation.map((voice) => {
+						const translationList = json.translation;
+						if (translationList) {
+							filterFound.voice = translationList.map((voice) => {
 								return {
 									url: voice.url,
 									title: voice.name
@@ -485,35 +485,35 @@
 							const selectedVoiceUrl = choice.voice_url;
 							const selectedVoiceName = choice.voice_name;
 
-							const foundVoiceUrl = translation.find((voice) => {
-								return voice.url == selectedVoiceUrl;
+							const foundTranslationUrl = translationList.find((translation) => {
+								return translation.url == selectedVoiceUrl;
 							});
-							const foundVoiceName = translation.find((voice) => {
-								return voice.name == selectedVoiceName;
+							const foundTranslationName = translationList.find((translation) => {
+								return translation.name == selectedVoiceName;
 							});
-							const foundVoiceActive = translation.find((voice) => {
-								return voice.active;
+							const foundTranslationActive = translationList.find((translation) => {
+								return translation.active;
 							});
 
-							if (foundVoiceUrl && !foundVoiceUrl.active) {
+							if (foundTranslationUrl && !foundTranslationUrl.active) {
 								this.replaceChoice({
-									voice: translation.indexOf(foundVoiceUrl),
-									voice_name: foundVoiceUrl.name
+									voice: translationList.indexOf(foundTranslationUrl),
+									voice_name: foundTranslationUrl.name
 								});
-								this.request(foundVoiceUrl.url);
+								this.request(foundTranslationUrl.url);
 							}
-							else if (foundVoiceName && !foundVoiceName.active) {
+							else if (foundTranslationName && !foundTranslationName.active) {
 								this.replaceChoice({
-									voice: translation.indexOf(foundVoiceName),
-									voice_name: foundVoiceName.name
+									voice: translationList.indexOf(foundTranslationName),
+									voice_name: foundTranslationName.name
 								});
-								this.request(foundVoiceName.url);
+								this.request(foundTranslationName.url);
 							}
 							else {
-								if (foundVoiceActive) {
+								if (foundTranslationActive) {
 									this.replaceChoice({
-										voice: translation.indexOf(foundVoiceActive),
-										voice_name: foundVoiceActive.name
+										voice: translationList.indexOf(foundTranslationActive),
+										voice_name: foundTranslationActive.name
 									});
 								}
 
@@ -944,11 +944,9 @@
 						return episode.episode_number == entry.episode_number && episode.season_number == seasonNumber;
 					});
 
-					const voiceName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : '') || entry.voice_name || entry.translate || '';
+					const translationName = choice.voice_name || (filterFound.voice[0] ? filterFound.voice[0].title : '') || entry.translation_name || '';
 					if (entry.qualities)
 						entry.quality = Lampa.Arrays.getKeys(entry.qualities)[0];
-					if (entry.translate)
-						entry.title = object.movie.title;
 
 					Lampa.Arrays.extend(entry, {
 						//details: voiceName,
@@ -956,12 +954,12 @@
 						time: Lampa.Utils.secondsToTime((episode ? episode.runtime : object.movie.runtime) * 60, true)
 					});
 
-					const hashFile = Lampa.Utils.hash(entry.season_number ? [entry.season_number, entry.season_number > 10 ? ':' : '', entry.episode_number, object.movie.original_title, voiceName].join('') : object.movie.original_title + voiceName);
+					const hashFile = Lampa.Utils.hash(entry.season_number ? [entry.season_number, entry.season_number > 10 ? ':' : '', entry.episode_number, object.movie.original_title, translationName].join('') : object.movie.original_title + translationName);
 					const hashTimeline = Lampa.Utils.hash(entry.season_number ? [entry.season_number, entry.season_number > 10 ? ':' : '', entry.episode_number, object.movie.original_title].join('') : object.movie.original_title);
 
-					if (entry.season_number && voiceName.length > 0) {
+					if (entry.season_number && translationName.length > 0) {
 						entry.translate_episode_end = videos[videos.length - 1].episode_number;
-						entry.translate_voice = voiceName;
+						entry.translate_voice = translationName;
 					}
 
 					entry.timeline = Lampa.Timeline.view(hashTimeline);
@@ -980,6 +978,9 @@
 							details.push(Lampa.Utils.parseTime(episode.air_date).full);
 					}
 					else {
+						if (!entry.title)
+							entry.title = object.movie.title;
+
 						if (object.movie.release_date)
 							details.push(Lampa.Utils.parseTime(object.movie.release_date).full);
 						if (isFullWidth && object.movie.tagline)
@@ -1356,7 +1357,7 @@
 			this.resetPage();
 
 			let html = Lampa.Template.get('qwatch_page_no_answer', {
-				source: sourcesList[sourceActive]
+				source: sourcesList[sourceActive].name
 			});
 
 			if (response && response["msg"])
