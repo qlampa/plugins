@@ -162,7 +162,7 @@
 				query.push('original_language=' + object.movie.original_language);
 			const date = (object.movie.release_date || object.movie.first_air_date);
 			if (date)
-				query.push('year=' + year.slice(0, 4));
+				query.push('year=' + date.slice(0, 4));
 			query.push('source=' + (object.movie.source || 'tmdb'));
 			if (object.similar)
 				query.push('similar=true');
@@ -305,8 +305,8 @@
 					filter.render().find('.filter--search').addClass('hide');
 
 				this.search();
-			}).catch((err) => {
-				this.showNoConnectPage(err);
+			}).catch((error) => {
+				this.showNoConnectPage(error);
 			});
 
 			//return this.render();
@@ -1330,14 +1330,17 @@
 			this.setLoading(false);
 		};
 		this.showNoConnectPage = function (response) {
-			let sourceName = providersAlive[providerActive].name;
-			if (!sourceName)
-				sourceName = providerActive ? providerActive.charAt(0).toUpperCase() + providerActive.slice(1) : "Backend";
+			let source = providersAlive[providerActive];
+			let sourceName;
+			if (!source)
+				sourceName = providerActive ? providerActive.charAt(0).toUpperCase() + providerActive.slice(1) : 'Backend';
+			else
+				sourceName = source.name;
 
 			let html = Lampa.Template.get('qwatch_page_no_answer', {});
 			html.find('.qwatch-empty__buttons').remove();
 			html.find('.qwatch-empty__title').text(Lampa.Lang.translate('title_error'));
-			html.find('.qwatch-empty__time').text(response && response["accsdb"] ? response["msg"] : Lampa.Lang.translate('qwatch_provider_no_results').replace('{provider}', providersAlive[providerActive].name));
+			html.find('.qwatch-empty__time').text(response ? response["msg"] : Lampa.Lang.translate('qwatch_provider_no_results').replace('{provider}', providersAlive[providerActive].name));
 
 			scroll.clear();
 			scroll.append(html);
