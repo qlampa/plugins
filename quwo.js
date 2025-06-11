@@ -122,11 +122,11 @@
 
 				let query = '/external_ids?method=' + object.method
 				if (object.movie.id)
-					query += 'tmdb_id=' + object.movie.id;
+					query += '&tmdb_id=' + object.movie.id;
 				if (object.movie.imdb_id)
-					query += 'imdb_id=' + object.movie.imdb_id;
+					query += '&imdb_id=' + object.movie.imdb_id;
 				if (object.movie.kinopoisk_id)
-					query += 'kp_id=' + object.movie.kinopoisk_id;
+					query += '&kp_id=' + object.movie.kinopoisk_id;
 
 				// try to pull external ids via primary
 				network.timeout(10_000);
@@ -383,7 +383,7 @@
 		this.toPlayData = function (video) {
 			return {
 				title: video.title,
-				url: video.url,
+				url: video.url || video.qualities[0],
 				quality: video.qualities,
 				timeline: video.timeline,
 				subtitles: video.subtitles,
@@ -406,16 +406,14 @@
 		 * @param {Lampa.PlayData} play
 		 **/
 		this.setDefaultQualityUrl = function (play) {
-			if (Lampa.Arrays.getKeys(play.quality).length > 0) {
-				for (const key in play.quality) {
-					const value = play.quality[key];
-					if (parseInt(key) == Lampa.Storage.field('video_quality_default')) {
-						play.url = value;
-						this.setReserveUrl(play);
-					}
-					if (value.indexOf(' or ') !== -1)
-						play.quality[key] = value.split(' or ')[0];
+			for (const key in play.quality) {
+				const value = play.quality[key];
+				if (parseInt(key) == Lampa.Storage.field('video_quality_default')) {
+					play.url = value;
+					this.setReserveUrl(play);
 				}
+				if (value.indexOf(' or ') !== -1)
+					play.quality[key] = value.split(' or ')[0];
 			}
 		};
 		/**
@@ -563,7 +561,7 @@
 						let playData = this.toPlayData(video);
 						playData.url = json.url;
 						playData.headers = json_call.headers || json.headers;
-						playData.quality = json_call.quality || video.qualities;
+						playData.quality = json_call.qualities || video.qualities;
 						playData.hls_manifest_timeout = json_call.hls_manifest_timeout || json.hls_manifest_timeout;
 						playData.subtitles = json.subtitles;
 						playData.vast_url = json.vast_url;
@@ -983,7 +981,7 @@
 					else {
 						if (object.movie.release_date)
 							details.push(Lampa.Utils.parseTime(object.movie.release_date).full);
-						if (isFullWidth && object.movie.tagline && entry.details.length < 32)
+						if (isFullWidth && object.movie.tagline)
 							details.push(object.movie.tagline);
 					}
 					if (entry.details)
