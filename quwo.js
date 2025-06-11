@@ -211,7 +211,7 @@
 		};
 		this.requestSources = function () {
 			return new Promise((resolve, reject) => {
-				const anime = object.movie.keywords.results.indexOf((keyword) => keyword.name.includes('anime')) !== -1 || (object.movie.genres.indexOf((genre) => genre.id === 16) !== -1 && object.movie.original_language === 'ja');
+				const anime = object.movie.keywords.results.findIndex((keyword) => keyword.name.includes('anime')) !== -1 || (object.movie.genres.findIndex((genre) => genre.id === 16) !== -1 && object.movie.original_language === 'ja');
 				network.silent(this.addQuwoParams(hostAddress + '/online?anime=' + anime), (response) => {
 					this.addSource(response).then(resolve).catch(reject);
 				}, reject);
