@@ -155,7 +155,7 @@
 				query.push('kp_id=' + object.movie.kinopoisk_id);
 			query.push('title=' + encodeURIComponent(object.similar ? object.search : object.movie.title || object.movie.name));
 			query.push('original_title=' + encodeURIComponent(object.movie.original_title || object.movie.original_name));
-			query.push('language=') + Lampa.Storage.get('language', 'ru'); // @todo: this trash not getting set by default in lampa, so we always fallback to ru
+			query.push('language=') + Lampa.Storage.field('language');
 			if (object.movie.original_language)
 				query.push('original_language=' + object.movie.original_language);
 			const date = (object.movie.release_date || object.movie.first_air_date);
@@ -838,7 +838,7 @@
 			// @todo: shitty workaround cuz tmdb doesnt group anime by seasons properly, in same time tvdb does, but have less general information | probably better way would be to use jikan.moe/myanimelist/shikimori api for animes and tmdb for everything else
 			if (object.method === 'tv' && typeof object.movie.id == 'number') {
 				network.timeout(15_000);
-				network.native(Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru')), (tmdbResponse) => {
+				network.native(Lampa.TMDB.api('tv/' + object.movie.id + '/season/' + season + '?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.field('language')), (tmdbResponse) => {
 					episodes = tmdbResponse["episodes"];
 					callback(episodes);
 				}, (data) => {
@@ -847,7 +847,7 @@
 					if (data.status === 404 && object.movie.tvdb_id) {
 						// request the absolute season
 						network.timeout(15_000);
-						network.native(Lampa.TMDB.api('tv/' + object.movie.id + '/season/1?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.get('language', 'ru')), (tmdbAbsoluteResponse) => {
+						network.native(Lampa.TMDB.api('tv/' + object.movie.id + '/season/1?api_key=' + Lampa.TMDB.key() + '&language=' + Lampa.Storage.field('language')), (tmdbAbsoluteResponse) => {
 							episodes = tmdbAbsoluteResponse["episodes"];
 
 							if (episodes) {
