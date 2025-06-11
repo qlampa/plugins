@@ -122,11 +122,11 @@
 
 				let query = '/external_ids?method=' + object.method
 				if (object.movie.id)
-					query += ('tmdb_id=' + object.movie.id);
+					query += 'tmdb_id=' + object.movie.id;
 				if (object.movie.imdb_id)
-					query += push('imdb_id=' + object.movie.imdb_id);
+					query += 'imdb_id=' + object.movie.imdb_id;
 				if (object.movie.kinopoisk_id)
-					query += push('kp_id=' + object.movie.kinopoisk_id);
+					query += 'kp_id=' + object.movie.kinopoisk_id;
 
 				// try to pull external ids via primary
 				network.timeout(10_000);
