@@ -177,8 +177,9 @@
 		};
 		this.addSource = function (sourcesJson) {
 			return new Promise((resolve, reject) => {
-				for (const source in sourcesJson) {
-					providersAlive[source.key] = {
+				for (const key in sourcesJson) {
+					const source = sourcesJson[key];
+					providersAlive[key] = {
 						url: source.url,
 						name: source.name,
 						show: source.show === undefined ? true : source.show
