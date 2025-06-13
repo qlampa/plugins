@@ -211,7 +211,9 @@
 		};
 		this.requestSources = function () {
 			return new Promise((resolve, reject) => {
+				// @note: determine if the target is anime by keywords and genre
 				const anime = object.movie.keywords.results.findIndex((keyword) => keyword.name.includes('anime')) !== -1 || (object.movie.genres.findIndex((genre) => genre.id === 16) !== -1 && object.movie.original_language === 'ja');
+
 				network.silent(this.addQuwoParams(hostAddress + '/online?anime=' + anime), (response) => {
 					this.addSource(response).then(resolve).catch(reject);
 				}, reject);
@@ -424,7 +426,7 @@
 		 * @typedef {{method:string, url:string, name:string}} Online.Season
 		 * @typedef {{method:string, url:string, stream?:string, title?:string, name?:string, season:number, episode:number, vast_url?:string, vast_msg?:string}} Online.Episode
 		 * @typedef {{url:string, title:string, year:number, details?:string[], poster_url?:string}} Online.Similar
-		 * @typedef {{type:string, translation?:Online.Translation[], data:Online.Movie[]|Online.Season[]|Online.Episode[]|Online.Similar[]}} Online.Result
+		 * @typedef {{type:string, headers?: Record<string, string>, translation?:Online.Translation[], data:Online.Movie[]|Online.Season[]|Online.Episode[]|Online.Similar[]}} Online.Result
 		 * @param {string} data 
 		 **/
 		this.parseVideosData = function (data) {
@@ -444,7 +446,7 @@
 							voice_name: ''
 						});
 
-						this.showVideos(entries);
+						this.showVideos(entries, json.headers);
 						break;
 					}
 					// parse seasons information
@@ -517,7 +519,7 @@
 									});
 								}
 
-								this.showVideos(entries);
+								this.showVideos(entries, json.headers);
 							}
 						}
 						else {
@@ -527,7 +529,7 @@
 								voice_name: ''
 							});
 
-							this.showVideos(entries);
+							this.showVideos(entries, json.headers);
 						}
 
 						break;
@@ -549,8 +551,9 @@
 		/**
 		 * show list of the found videos
 		 * @param {Online.Movie[]|Online.Episode[]} videos
+		 * @param {?Record<string, string>} headers
 		 **/
-		this.showVideos = function (videos) {
+		this.showVideos = function (videos, headers) {
 			this.drawList(videos, {
 				onEnter: (video, html) => {
 					this.requestVideoData(video, (json, json_call) => {
@@ -560,7 +563,7 @@
 						}
 
 						let playData = this.toPlayData(video);
-						playData.headers = json_call.headers || json.headers;
+						playData.headers = headers;
 						playData.quality = json_call.qualities || video.qualities;
 						playData.hls_manifest_timeout = json_call.hls_manifest_timeout || json.hls_manifest_timeout;
 						playData.subtitles = json.subtitles;
