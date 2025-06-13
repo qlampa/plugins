@@ -687,10 +687,7 @@
 				if (folder.poster_url !== undefined) {
 					let imageElement = $('<img style="height: 7em; width: 7em; border-radius: 0.3em;"/>');
 					folderElement.find('.qwatch-item__folder').empty().append(imageElement);
-
-					if (folder.poster.charAt(0) === '/')
-						folder.poster = hostAddress + folder.poster;
-					Lampa.Utils.imgLoad(imageElement, folder.poster);
+					Lampa.Utils.imgLoad(imageElement, folder.poster_url);
 				}
 
 				folderElement.on('hover:enter', () => {
