@@ -386,13 +386,13 @@
 		 * @returns {Lampa.PlayData} player object
 		 **/
 		this.toPlayData = function (video) {
-			let defaultUrl = video.url;
-			if (!defaultUrl) {
-				for (const qualityUrl of video.qualities) {
-					defaultUrl = qualityUrl;
-					break;
-				}
+			let defaultUrl;
+			for (const qualityUrl of video.qualities) {
+				defaultUrl = qualityUrl;
+				break;
 			}
+			if (!defaultUrl)
+				defaultUrl = video.url;
 
 			return {
 				title: video.title,
