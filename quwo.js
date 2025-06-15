@@ -157,6 +157,8 @@
 			let query = [];
 			query.push('method=' + object.method);
 			query.push('tmdb_id=' + object.movie.id);
+			if (object.movie.tvdb_id)
+				query.push('tvdb_id=' + object.movie.tvdb_id);
 			if (object.movie.imdb_id)
 				query.push('imdb_id=' + object.movie.imdb_id);
 			if (object.movie.kinopoisk_id)
