@@ -583,6 +583,7 @@
 							// @todo: prepend episode index to title
 							videos.forEach((episode) => {
 								let playCell = this.toPlayData(episode);
+								playCell.headers = headers;
 
 								if (episode == video)
 									playCell.url = json.url;
@@ -887,8 +888,8 @@
 											callback(episodes);
 										}, null, {
 											headers: {
-												'Accept': 'application/json',
-												'Authorization': 'Bearer ' + tvdbToken
+												'accept': 'application/json',
+												'authorization': 'Bearer ' + tvdbToken
 											}
 										});
 									}
@@ -898,8 +899,8 @@
 									apikey: tvdbApiKey
 								}), {
 									headers: {
-										'Accept': 'application/json',
-										'Content-Type': 'application/json'
+										'accept': 'application/json',
+										'content-type': 'application/json'
 									}
 								});
 							}
