@@ -354,10 +354,10 @@
 		 **/
 		this.requestVideoData = function (video, call) {
 			if (Lampa.Storage.field('player') !== 'inner' && Lampa.Platform.is('apple') && video.stream) {
-				let videoStream = Lampa.Arrays.clone(video);
-				videoStream.method = 'play';
-				videoStream.url = video.stream;
-				call(videoStream, {});
+				let videoDirect = Lampa.Arrays.clone(video);
+				videoDirect.method = 'play';
+				videoDirect.url = video.stream;
+				call(videoDirect, {});
 			}
 			else if (video.method == 'play')
 				call(video, {});
@@ -386,17 +386,9 @@
 		 * @returns {Lampa.PlayData} player object
 		 **/
 		this.toPlayData = function (video) {
-			let defaultUrl;
-			for (const qualityUrl of video.qualities) {
-				defaultUrl = qualityUrl;
-				break;
-			}
-			if (!defaultUrl)
-				defaultUrl = video.url;
-
 			return {
 				title: video.title,
-				url: defaultUrl,
+				url: video.url,
 				quality: video.qualities,
 				timeline: video.timeline,
 				subtitles: video.subtitles,
@@ -432,7 +424,7 @@
 		/**
 		 * parse information of the requested videos
 		 * @typedef {{method: string, url:string, name:string, active:boolean}} Online.Translation
-		 * @typedef {{method:string, url:string, title?:string, qualities?:Object.<string, string>[], translation_name?:string, vast_url?:string, vast_msg?:string}} Online.Movie
+		 * @typedef {{method:string, url:string, title?:string, qualities?:Object.<string, string>, translation_name?:string, vast_url?:string, vast_msg?:string}} Online.Movie
 		 * @typedef {{method:string, url:string, name:string}} Online.Season
 		 * @typedef {{method:string, url:string, stream?:string, title?:string, name?:string, season:number, episode:number, vast_url?:string, vast_msg?:string}} Online.Episode
 		 * @typedef {{url:string, title:string, year:number, details?:string[], poster_url?:string}} Online.Similar
@@ -567,7 +559,7 @@
 			this.drawList(videos, {
 				onEnter: (video, html) => {
 					this.requestVideoData(video, (json, json_call) => {
-						if (!json || (!json.url && !json.qualities)) {
+						if (!json || !json.url) {
 							Lampa.Noty.show(Lampa.Lang.translate('qwatch_no_link'));
 							return;
 						}
@@ -579,19 +571,18 @@
 						playData.subtitles = json.subtitles;
 						playData.vast_url = json.vast_url;
 						playData.vast_msg = json.vast_msg;
-						if (video.timeline.percent > 0)
-							playData.position = video.timeline.time;
 						this.setReserveUrl(playData);
 						this.setDefaultQualityUrl(playData);
+
+						// restore previous view position
+						if (video.timeline.percent > 0)
+							playData.position = video.timeline.time;
 
 						let playlist = [];
 						if (video.season_number) {
 							// @todo: prepend episode index to title
 							videos.forEach((episode) => {
 								let playCell = this.toPlayData(episode);
-								// prevent preroll ads
-								playCell.vast_url = '';
-								playCell.vast_msg = '';
 
 								if (episode == video)
 									playCell.url = json.url;
