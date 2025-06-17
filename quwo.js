@@ -213,8 +213,8 @@
 		};
 		this.requestSources = function () {
 			return new Promise((resolve, reject) => {
-				// @note: determine if the target is anime by keywords and genre
-				const anime = object.movie.keywords.results.findIndex((keyword) => keyword.name.includes('anime')) !== -1 || (object.movie.genres.findIndex((genre) => genre.id === 16) !== -1 && object.movie.original_language === 'ja');
+				// @note: determine if the target is anime by keywords or genre
+				const anime = (object.movie.keywords.keywords ?? object.movie.keywords.results).findIndex((keyword) => keyword.name.includes('anime')) !== -1 || (object.movie.genres.findIndex((genre) => genre.id === 16) !== -1 && object.movie.original_language === 'ja');
 
 				network.silent(this.addQuwoParams(hostAddress + '/online?anime=' + anime), (response) => {
 					this.addSource(response).then(resolve).catch(reject);
@@ -428,7 +428,7 @@
 		 * @typedef {{method:string, url:string, name:string}} Online.Season
 		 * @typedef {{method:string, url:string, stream?:string, title?:string, name?:string, season:number, episode:number, vast_url?:string, vast_msg?:string}} Online.Episode
 		 * @typedef {{url:string, title:string, year:number, details?:string[], poster_url?:string}} Online.Similar
-		 * @typedef {{type:string, headers?: Record<string, string>, translation?:Online.Translation[], data:Online.Movie[]|Online.Season[]|Online.Episode[]|Online.Similar[]}} Online.Result
+		 * @typedef {{type:string, translation?:Online.Translation[], data:Online.Movie[]|Online.Season[]|Online.Episode[]|Online.Similar[]}} Online.Result
 		 * @param {string} data 
 		 **/
 		this.parseVideosData = function (data) {
@@ -448,7 +448,7 @@
 							voice_name: ''
 						});
 
-						this.showVideos(entries, json.headers);
+						this.showVideos(entries);
 						break;
 					}
 					// parse seasons information
@@ -521,7 +521,7 @@
 									});
 								}
 
-								this.showVideos(entries, json.headers);
+								this.showVideos(entries);
 							}
 						}
 						else {
@@ -531,7 +531,7 @@
 								voice_name: ''
 							});
 
-							this.showVideos(entries, json.headers);
+							this.showVideos(entries);
 						}
 
 						break;
@@ -553,9 +553,8 @@
 		/**
 		 * show list of the found videos
 		 * @param {Online.Movie[]|Online.Episode[]} videos
-		 * @param {?Record<string, string>} headers
 		 **/
-		this.showVideos = function (videos, headers) {
+		this.showVideos = function (videos) {
 			this.drawList(videos, {
 				onEnter: (video, html) => {
 					this.requestVideoData(video, (json, json_call) => {
@@ -565,10 +564,9 @@
 						}
 
 						let playData = this.toPlayData(video);
-						playData.headers = headers;
 						playData.quality = json_call.qualities || video.qualities;
 						playData.hls_manifest_timeout = json_call.hls_manifest_timeout || json.hls_manifest_timeout;
-						playData.subtitles = json.subtitles;
+						playData.subtitles = json.subtitles; // @todo: doesnt work as expected
 						playData.vast_url = json.vast_url;
 						playData.vast_msg = json.vast_msg;
 						this.setReserveUrl(playData);
@@ -583,7 +581,6 @@
 							// @todo: prepend episode index to title
 							videos.forEach((episode) => {
 								let playCell = this.toPlayData(episode);
-								playCell.headers = headers;
 
 								if (episode == video)
 									playCell.url = json.url;
@@ -597,7 +594,7 @@
 											this.requestVideoData(episode, (stream, stream_json) => {
 												if (stream.url) {
 													playCell.url = stream.url;
-													playCell.quality = stream_json.quality || episode.qualities;
+													playCell.quality = stream_json.qualities || episode.qualities;
 													playCell.subtitles = stream.subtitles;
 													this.setReserveUrl(playCell);
 													this.setDefaultQualityUrl(playCell);
