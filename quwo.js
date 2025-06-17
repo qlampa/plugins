@@ -214,7 +214,7 @@
 		this.requestSources = function () {
 			return new Promise((resolve, reject) => {
 				// @note: determine if the target is anime by keywords or genre
-				const anime = (object.movie.keywords.keywords ?? object.movie.keywords.results).findIndex((keyword) => keyword.name.includes('anime')) !== -1 || (object.movie.genres.findIndex((genre) => genre.id === 16) !== -1 && object.movie.original_language === 'ja');
+				const anime = (object.movie.keywords.keywords || object.movie.keywords.results).findIndex((keyword) => keyword.name.includes('anime')) !== -1 || (object.movie.genres.findIndex((genre) => genre.id === 16) !== -1 && object.movie.original_language === 'ja');
 
 				network.silent(this.addQuwoParams(hostAddress + '/online?anime=' + anime), (response) => {
 					this.addSource(response).then(resolve).catch(reject);
