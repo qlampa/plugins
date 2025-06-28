@@ -683,7 +683,7 @@
 
 				let folderElement = Lampa.Template.get('qwatch_item_folder', folder);
 				if (folder.poster_url !== undefined) {
-					let imageElement = $('<img style="height: 7em; width: 7em; border-radius: 0.3em;"/>');
+					let imageElement = $('<img/>');
 					folderElement.find('.qwatch-item__folder').empty().append(imageElement);
 					Lampa.Utils.imgLoad(imageElement, folder.poster_url);
 				}
@@ -1553,6 +1553,7 @@
 			'.qwatch-item__img>img{position:absolute;top:0;left:0;width:100%;height:100%;-o-object-fit:cover;object-fit:cover;-webkit-border-top-left-radius:.3em;-webkit-border-bottom-left-radius:.3em;border-top-left-radius:.3em;border-bottom-left-radius:.3em;opacity:0;-webkit-transition:opacity .3s;-o-transition:opacity .3s;-moz-transition:opacity .3s;transition:opacity .3s}' +
 			'.qwatch-item__img--loaded>img{opacity:1}@media screen and (max-width:480px){.qwatch-item__img{width:7em;min-height:6em}}' +
 			'.qwatch-item__folder{-webkit-flex-shrink:0;-ms-flex-negative:0;flex-shrink:0}' +
+			'.qwatch-item__folder>img{width:7em;height:7em;-o-object-fit:cover;object-fit:cover;-webkit-border-top-left-radius:.3em;-webkit-border-bottom-left-radius:.3em;border-top-left-radius:.3em;border-bottom-left-radius:.3em}' +
 			'.qwatch-item__folder>svg{margin:1em;width:4.4em;height:4.4em}' +
 			'.qwatch-item__watched{position:absolute;top:1em;left:1em;background:rgba(0,0,0,.45);-webkit-border-radius:100%;border-radius:100%;padding:.25em;font-size:.76em}' +
 			'.qwatch-item__watched>svg{width:1.5em !important;height:1.5em !important}' +
@@ -1628,7 +1629,6 @@
 				'<div class="qwatch-item__body">' +
 				'<div class="qwatch-item__head">' +
 				'<div class="qwatch-item__title">{title}</div>' +
-				'<div class="qwatch-item__time">{time}</div>' +
 				'</div>' +
 				'<div class="qwatch-item__footer">' +
 				'<div class="qwatch-item__details">{details}</div>' +
