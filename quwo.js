@@ -59,7 +59,7 @@
 
 		/**
 		 * @typedef Online.Source
-		 * @type {Object.<string,{name:string, url:string, show?:boolean}>}
+		 * @type {Object.<string,{name:string, url:string, enable?:boolean}>}
 		 **/
 		/**
 		 * container of the available sources present by backend
@@ -107,7 +107,7 @@
 			return new Promise((resolve, reject) => {
 				const tmdbExternalIds = () => {
 					// try to pull external ids via TMDB
-					network.timeout(10_000);
+					network.timeout(15_000);
 					network.silent(Lampa.TMDB.api(object.method + '/' + object.movie.id + '/external_ids?api_key=' + Lampa.TMDB.key()), (response) => {
 						for (const name in response) {
 							const value = response[name];
@@ -129,7 +129,6 @@
 					query += '&kp_id=' + object.movie.kinopoisk_id;
 
 				// try to pull external ids via primary
-				network.timeout(15_000);
 				network.silent(hostAddress + query, (response) => {
 					for (const name in response) {
 						object.movie[name] = response[name];
@@ -190,7 +189,7 @@
 					sourcesList[key] = {
 						url: source.url,
 						name: source.name,
-						show: source.show === undefined ? true : source.show
+						enable: source.enable === undefined ? true : source.enable
 					};
 				};
 
@@ -201,7 +200,7 @@
 					else
 						sourceActive = Lampa.Storage.get('online_source', filterSources[0]);
 
-					if (!sourcesList[sourceActive] || (!sourcesList[sourceActive].show && !object.lampac_custom_select))
+					if (!sourcesList[sourceActive] || (!sourcesList[sourceActive].enable && !object.lampac_custom_select))
 						sourceActive = filterSources[0];
 
 					sourceActiveUrl = sourcesList[sourceActive].url;
@@ -425,8 +424,8 @@
 		 * parse information of the requested videos
 		 * @typedef {{method: string, url:string, name:string, active:boolean}} Online.Translation
 		 * @typedef {{method:string, url:string, title?:string, qualities?:Object.<string, string>, translation_name?:string, vast_url?:string, vast_msg?:string}} Online.Movie
-		 * @typedef {{method:string, url:string, name:string}} Online.Season
-		 * @typedef {{method:string, url:string, stream?:string, title?:string, name?:string, season:number, episode:number, vast_url?:string, vast_msg?:string}} Online.Episode
+		 * @typedef {{method:string, url:string, name?:string}} Online.Season
+		 * @typedef {{method:string, url:string, stream?:string, qualities?:Object.<string, string>, name?:string, season:number, episode:number, vast_url?:string, vast_msg?:string}} Online.Episode
 		 * @typedef {{url:string, title:string, year:number, details?:string[], poster_url?:string}} Online.Similar
 		 * @typedef {{type:string, translation?:Online.Translation[], data:Online.Movie[]|Online.Season[]|Online.Episode[]|Online.Similar[]}} Online.Result
 		 * @param {string} data 
@@ -456,7 +455,7 @@
 						filterFound.season = entries.map((season) => {
 							return {
 								url: season.url,
-								title: season.name
+								title: season.name || season.index
 							};
 						});
 
@@ -659,7 +658,7 @@
 
 			this.filter({
 				season: filterFound.season.map((s) => {
-					return s.title;
+					return s.title || s.index;
 				}),
 				voice: filterFound.voice.map((b) => {
 					return b.title;
@@ -804,10 +803,10 @@
 			filter.set('sort', filterSources.map((sourceName) => {
 				const source = sourcesList[sourceName];
 				return {
+					source: sourceName,
 					title: source.name,
 					selected: sourceName == sourceActive,
-					ghost: !source.show,
-					source: sourceName
+					ghost: !source.enable
 				};
 			}));
 			this.showFilter(filterItems);
@@ -822,9 +821,9 @@
 
 			for (const field in choice) {
 				if (filterItems[field] && filterItems[field].length > 0) {
-					if (field == 'voice')
+					if (field === 'voice')
 						select.push(filterTranslation[field] + ': ' + filterItems[field][choice[field]]);
-					else if (field !== 'source' && filterItems.season.length > 0)
+					else if (field === 'season' && filterItems.season.length > 0)
 						select.push(filterTranslation.season + ': ' + filterItems[field][choice[field]]);
 				}
 			}
@@ -965,7 +964,7 @@
 					let details = [];
 					let rating = '';
 					if (episode) {
-						entry.title = episode.name;
+						entry.title = entry.name || episode.name;
 
 						if (episode.vote_average)
 							rating = Lampa.Template.get('qwatch_item_rating', {
