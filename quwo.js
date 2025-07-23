@@ -1,7 +1,7 @@
 (function () {
 	'use strict';
 
-	const hostAddress = 'http://127.0.0.1:4500';
+	const hostAddress = 'http://jb06vsjd-4500.inc1.devtunnels.ms';
 	// @todo: request those from backend instead
 	const sourcesWithSearch = [
 		'alloha', 'anilibria', 'animebesst',
