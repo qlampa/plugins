@@ -135,7 +135,11 @@
 					}
 
 					tmdbExternalIds();
-				}, tmdbExternalIds);
+				}, tmdbExternalIds, false, {
+					headers: {
+						'set-cookie': '.Tunnels.Relay.WebForwarding.Cookies=CfDJ8Cs4yarcs6pKkdu0hlKHsZteBrCzdul8OkC8ulmGTy1O7Vqt89aHMSKF4i5DSK3irtaKRKTNSJgKsEutCkzvtPFE1cYI7Ambs1EM-cetsQkEkGRoj5fE0dQfOovy48zlWTG_VVRx3pkbdHWEgEf0WMs0BmU47nLhTUGJzmLd8DVjOqEwOLkldK88I3pSYlG6TtIBcFzrHrniav1veFc6mnt-zoIbebwus3MOdctv2LJEWcF72OJMLZ91O7OgQPULHG2-63Fna-8PdYL3RAp9VjoX-4jj-WKX--PYZMu_8Bgajji7b1dzZ5pgf1QF-VYPTcQ76WDOYlZCBCYl3l895gWrQzJmZpuTrtGQPlyiiem4vb2oG0fy9HkBzTiu9A8cYCqWSbaNfhhaQiOPqDKneDRiDZU_6nCdYzUn8PuF4MfEyLUNacc9i4jm-uzjInYI_w3_d-PUwxSB1L45X6urAsng5KAVl-S0Q-fNTV5jnHk_xYqXRnJSgrdPAVDbrzk4m1tpfCzdDKKpDJVOGVWIgqFYJHKXZLxcP1LFlfmRN7onTjOUd9UTZTSCp_7cXP2D6gaWrSG1sXb2XZP--LnwoukbNYv3nnG1DhQkoqPJv3nrTOogWhq2nZMbLEkEm4fSBg_ZhRRtwMCoL3x8606lSU8R84BH1hOxWPTjCyHVZQoTCYNOWO0b87KYh7i-Djrdq7w8NQH447EzbqmYemsXddy041gKRPeY3hbC9TCiBRX7ykckeEKGpB83gd_nrXrnmfCTLg2MpdmIsLVG5qhLLAxJ_UwGI6Lu3SWCP-GfAcLmKD4RwFD7M0CT_Gu8pGYXzEeb68BSwpzmYr_A4CCqM8f_6F4ORw8PshpKYcsPrmeDjbg8Xh3GaCdQmOgxNBRm-LrIeaUR5SRndvcG2ZbO7wfJt7IGM2ANDvsvThiD_q8N; path=/; secure; samesite=none; Partitioned'
+					}
+				});
 			});
 		};
 		this.updateSource = function (sourceName) {
